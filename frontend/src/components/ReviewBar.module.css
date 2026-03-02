@@ -1,0 +1,56 @@
+.bar {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-w);
+  right: var(--right-panel-w);
+  padding: 12px 24px;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 5;
+}
+
+@media (max-width: 1024px) {
+  .bar {
+    right: 0;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.accept {
+  padding: 8px 18px;
+  font-size: 14px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+}
+
+.accept:hover {
+  background: var(--accent-hover);
+}
+
+.decline {
+  padding: 8px 18px;
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.decline:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.shortcut {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
