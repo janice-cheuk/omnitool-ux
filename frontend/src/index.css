@@ -1,0 +1,48 @@
+:root {
+  --sidebar-w: 56px;
+  --right-panel-w: 360px;
+  --slots-panel-w: 200px;
+  --header-h: 56px;
+  --nav-bg: #1a1d21;
+  --main-bg: #25282c;
+  --panel-bg: #2d3136;
+  --card-bg: #35393e;
+  --border: #3d4248;
+  --text: #e4e6e8;
+  --text-muted: #9ca3ab;
+  --accent: #4a9eff;
+  --accent-hover: #6bb0ff;
+  --success: #34c759;
+  --error: #ff453a;
+  --user-bubble: #3d4248;
+  --font-sans: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--main-bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
