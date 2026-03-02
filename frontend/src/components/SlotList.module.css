@@ -1,0 +1,97 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text);
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.item:hover {
+  background: var(--card-bg);
+}
+
+.itemSelected {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+}
+
+.badge {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotOk {
+  background: var(--success);
+}
+
+.dotError {
+  background: var(--error);
+}
+
+.dotLoading {
+  background: var(--accent);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.empty {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.emptyText {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+}
+
+.emptyCta {
+  padding: 8px 16px;
+  font-size: 13px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+}
+
+.emptyCta:hover {
+  background: var(--accent-hover);
+}

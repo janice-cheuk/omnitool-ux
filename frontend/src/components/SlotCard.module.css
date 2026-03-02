@@ -1,0 +1,152 @@
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.card:hover {
+  border-color: var(--text-muted);
+}
+
+.cardSelected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.cardError {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.caret {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.caret:hover {
+  background: var(--panel-bg);
+  color: var(--text);
+}
+
+.pill {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--panel-bg);
+  border-radius: 6px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 80px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-family: ui-monospace, monospace;
+  color: var(--text);
+}
+
+.editBtn {
+  flex-shrink: 0;
+  padding: 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.editBtn:hover {
+  color: var(--accent);
+  background: var(--panel-bg);
+}
+
+.body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.defineRow,
+.validationRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--panel-bg);
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.typeSelect {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.slotNameRef {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.validationRules {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addValidation {
+  font-size: 13px;
+  color: var(--accent);
+  padding: 4px 0;
+  text-align: left;
+}
+
+.addValidation:hover {
+  text-decoration: underline;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 12px 0 0 0;
+}

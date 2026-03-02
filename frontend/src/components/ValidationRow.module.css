@@ -1,0 +1,98 @@
+.rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.listInput {
+  flex: 1;
+  min-width: 100px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.removeBtn {
+  padding: 4px 8px;
+  font-size: 16px;
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+
+.removeBtn:hover {
+  color: var(--error);
+  background: var(--card-bg);
+}
+
+.addItem {
+  font-size: 13px;
+  color: var(--accent);
+  padding: 4px 0;
+}
+
+.addItem:hover {
+  text-decoration: underline;
+}
+
+.opSelect {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.numInput {
+  width: 80px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.numInput::-webkit-outer-spin-button,
+.numInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.numInput[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.removeRule {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.removeRule:hover {
+  color: var(--error);
+}
