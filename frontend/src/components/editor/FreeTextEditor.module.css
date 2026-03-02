@@ -3,7 +3,9 @@
 }
 
 .editor {
-  min-height: 200px;
+  display: block;
+  width: 100%;
+  min-height: 240px;
   padding: 16px;
   font-size: 14px;
   line-height: 1.6;
@@ -11,12 +13,11 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   outline: none;
-  white-space: pre-wrap;
-  word-break: break-word;
+  resize: vertical;
+  color: var(--text);
 }
 
-.editor:empty::before {
-  content: attr(data-placeholder);
+.editor::placeholder {
   color: var(--text-muted);
 }
 
@@ -44,4 +45,26 @@
   padding: 2px 8px;
   border-radius: 6px;
   margin: 0 2px;
+}
+
+.preview {
+  margin-top: 12px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--panel-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.previewLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 8px;
 }
