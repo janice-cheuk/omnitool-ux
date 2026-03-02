@@ -1,0 +1,47 @@
+.wrapper {
+  position: relative;
+}
+
+.editor {
+  min-height: 200px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+
+.editor:focus {
+  border-color: var(--accent);
+}
+
+.chip {
+  display: inline;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+.chipCondition {
+  display: inline;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--success);
+  background: rgba(52, 199, 89, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+}

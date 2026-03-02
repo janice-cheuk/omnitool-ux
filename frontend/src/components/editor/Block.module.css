@@ -1,0 +1,53 @@
+.blockRow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 0 6px 32px;
+  cursor: text;
+}
+
+.blockRow:hover,
+.blockRow:focus-within {
+  outline: none;
+}
+
+.blockRowSelected {
+  background: rgba(74, 158, 255, 0.08);
+  border-radius: 6px;
+}
+
+.blockContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestionPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+.suggestionPill:hover {
+  background: rgba(74, 158, 255, 0.25);
+}
+
+.warningPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ff9500;
+  background: rgba(255, 149, 0, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+}

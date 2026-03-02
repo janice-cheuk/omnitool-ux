@@ -1,0 +1,57 @@
+.menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 8px 0;
+}
+
+.section {
+  padding: 4px 0;
+}
+
+.section:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 4px 12px 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.item:hover {
+  background: var(--panel-bg);
+}
+
+.label {
+  font-weight: 500;
+}
+
+.chip {
+  font-family: ui-monospace, monospace;
+  color: var(--accent);
+}

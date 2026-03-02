@@ -1,0 +1,80 @@
+.block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--panel-bg);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.chip {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.op {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.opSelect {
+  font-size: 13px;
+  padding: 4px 8px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.numInput {
+  width: 80px;
+  font-size: 13px;
+  padding: 4px 8px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.list {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.listItem {
+  display: inline-flex;
+}
+
+.listInput {
+  width: 80px;
+  font-size: 13px;
+  padding: 2px 6px;
+  background: var(--main-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.addBtn {
+  font-size: 12px;
+  color: var(--accent);
+  padding: 0 4px;
+}
+
+.addBtn:hover {
+  text-decoration: underline;
+}

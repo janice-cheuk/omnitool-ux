@@ -1,31 +1,100 @@
 export type SlotType = 'string' | 'int' | 'float' | 'enum' | 'boolean';
 
-export type SlotStatus = 'default' | 'editing' | 'error' | 'loading' | 'readonly';
+export type AssistantStatus = 'idle' | 'thinking' | 'result' | 'error';
 
-export type ValidationKind = 'defined_list' | 'numeric';
+// --- Block-based document model (Notion/Coda-style) ---
+
+export type Block =
+  | ParagraphBlock
+  | SlotDefinitionBlock
+  | ValidationBlock
+  | ConditionBlock;
+
+export interface BaseBlock {
+  id: string;
+  type: string;
+}
+
+export interface ParagraphBlock extends BaseBlock {
+  type: 'paragraph';
+  content: string;
+}
+
+export interface SlotDefinitionBlock extends BaseBlock {
+  type: 'slot_definition';
+  slotName: string;
+  slotType: SlotType;
+  enumValues?: string[];
+  missingSlotConfig?: { toolMessage: string; configured: boolean };
+}
+
+export interface ValidationBlock extends BaseBlock {
+  type: 'validation';
+  slotRef: string;
+  intent: 'in_list' | 'numeric' | 'required' | 'match' | 'contains';
+  operator?: string;
+  value?: string | number | string[];
+}
+
+export type ConditionAction =
+  | { kind: 'respond'; message: string }
+  | { kind: 'invoke_tool'; toolName: string }
+  | { kind: 'update_slot'; slotName: string; value: string }
+  | { kind: 'transfer'; target: string }
+  | { kind: 'end_conversation' };
+
+export interface ConditionBlock extends BaseBlock {
+  type: 'condition';
+  slotRef: string;
+  operator: string;
+  value: string | number | boolean;
+  action: ConditionAction;
+}
+
+export interface Document {
+  id: string;
+  title: string;
+  description: string;
+  blocks: Block[];
+  freeTextContent?: string;
+}
 
 export interface ValidationRule {
   id: string;
-  kind: ValidationKind;
+  kind: 'defined_list' | 'numeric';
   definedList?: string[];
   numericOp?: '>=' | '>' | '<=' | '<' | '==' | '!=';
   numericValue?: number;
 }
 
+export interface DocumentWarning {
+  blockId: string;
+  code: 'duplicate_slot' | 'missing_config' | 'overlapping_condition' | 'unused_slot' | 'empty_list';
+  message: string;
+}
+
+export interface PendingDiff {
+  id: string;
+  blocksToAdd: Block[];
+  insertionPoint: { afterBlockId: string } | { atCursor: true };
+  message?: string;
+}
+
+// Legacy slot type for assistant compatibility
 export interface Slot {
   id: string;
   name: string;
   type: SlotType;
   order: number;
-  validations: ValidationRule[];
-  status: SlotStatus;
+  validations: { id: string; kind: string; definedList?: string[] }[];
+  status: string;
   expanded: boolean;
 }
-
-export type AssistantStatus = 'idle' | 'thinking' | 'result' | 'error';
 
 export interface PendingAssistantDiff {
   kind: 'slots_created' | 'slots_updated' | 'validations_updated';
   suggestedSlots: Slot[];
+  blocksToAdd?: Block[];
+  insertionPoint?: { afterBlockId: string };
   message?: string;
 }

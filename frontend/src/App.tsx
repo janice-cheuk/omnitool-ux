@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Document, Block, SlotDefinitionBlock, PendingAssistantDiff, AssistantStatus } from './types';
 import { TopHeader } from './components/TopHeader';
-import { BlockEditor } from './components/editor/BlockEditor';
+import { FreeTextCanvas } from './components/editor/FreeTextCanvas';
 import { AssistantPanel } from './components/AssistantPanel';
 import { ReviewBar } from './components/ReviewBar';
 import styles from './App.module.css';
@@ -14,40 +14,13 @@ const initialDocument: Document = {
   id: 'doc-1',
   title: 'Slot Filling Config',
   description: 'Define slots, validations, and conditions for your Omni Tool.',
-  blocks: [
-    {
-      id: genBlockId(),
-      type: 'slot_definition',
-      slotName: 'user_intent',
-      slotType: 'string',
-    },
-    {
-      id: genBlockId(),
-      type: 'slot_definition',
-      slotName: 'is_residential_service',
-      slotType: 'string',
-    },
-    {
-      id: genBlockId(),
-      type: 'validation',
-      slotRef: 'user_intent',
-      intent: 'in_list',
-      value: ['new_service', 'transfer_service', 'stop_service', 'pending'],
-    },
-    {
-      id: genBlockId(),
-      type: 'validation',
-      slotRef: 'is_residential_service',
-      intent: 'in_list',
-      value: ['yes', 'no'],
-    },
-    { id: genBlockId(), type: 'paragraph', content: "Type 'slot name' or '/' for commands" },
-  ],
+  blocks: [],
+  freeTextContent:
+    'slot user_intent\nslot is_residential_service\n\nuser_intent in [new_service, transfer_service, stop_service, pending]\nis_residential_service in [yes, no]\n\nType freely — say "slot age", "validate X in [a,b,c]", "if X == Y then respond" — objects auto-detect as chips. Use / for commands, @ for slot refs.',
 };
 
 export default function App() {
   const [document, setDocument] = useState<Document>(initialDocument);
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [agentTitle, setAgentTitle] = useState('Omnitools Slot Filling Demo');
   const [toolName, setToolName] = useState('record_information');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -65,30 +38,19 @@ export default function App() {
   const onAcceptChanges = useCallback(() => {
     if (!pendingDiff) return;
     if (pendingDiff.blocksToAdd && pendingDiff.blocksToAdd.length > 0) {
-      const insertionPoint = pendingDiff.insertionPoint;
-      let afterBlockId: string | undefined;
-      if (insertionPoint && 'afterBlockId' in insertionPoint && insertionPoint.afterBlockId) {
-        afterBlockId = insertionPoint.afterBlockId;
-      }
-      setDocument((prev) => {
-        const idx =
-          afterBlockId != null
-            ? prev.blocks.findIndex((b) => b.id === afterBlockId) + 1 || prev.blocks.length
-            : prev.blocks.length;
-        const next = [...prev.blocks];
-        next.splice(idx, 0, ...pendingDiff.blocksToAdd!);
-        return { ...prev, blocks: next };
-      });
-    } else if (pendingDiff.suggestedSlots?.length) {
-      const newBlocks: Block[] = pendingDiff.suggestedSlots.map((s) => ({
-        id: genBlockId(),
-        type: 'slot_definition',
-        slotName: s.name,
-        slotType: s.type,
-      })) as SlotDefinitionBlock[];
+      const newSlots = pendingDiff.blocksToAdd
+        .filter((b): b is SlotDefinitionBlock => b.type === 'slot_definition')
+        .map((b) => `slot ${b.slotName}`)
+        .join('\n');
       setDocument((prev) => ({
         ...prev,
-        blocks: [...prev.blocks, ...newBlocks],
+        freeTextContent: (prev.freeTextContent ?? '') + (prev.freeTextContent ? '\n\n' : '') + newSlots,
+      }));
+    } else if (pendingDiff.suggestedSlots?.length) {
+      const newSlots = pendingDiff.suggestedSlots.map((s) => `slot ${s.name}`).join('\n');
+      setDocument((prev) => ({
+        ...prev,
+        freeTextContent: (prev.freeTextContent ?? '') + (prev.freeTextContent ? '\n\n' : '') + newSlots,
       }));
     }
     setPendingDiff(null);
@@ -141,14 +103,7 @@ export default function App() {
     setDraftDirty(false);
   }, []);
 
-  const slotBlocks = document.blocks.filter((b) => b.type === 'slot_definition');
-  const onSlotPillClick = useCallback(
-    (name: string) => {
-      const block = slotBlocks.find((b) => b.type === 'slot_definition' && b.slotName === name);
-      if (block) setSelectedBlockId(block.id);
-    },
-    [slotBlocks]
-  );
+  const onSlotPillClick = useCallback((_name: string) => {}, []);
 
   return (
     <>
@@ -176,11 +131,9 @@ export default function App() {
         </div>
 
         <div className={styles.editorArea}>
-          <BlockEditor
+          <FreeTextCanvas
             document={document}
             onDocumentChange={onDocumentChange}
-            selectedBlockId={selectedBlockId}
-            onSelectBlock={setSelectedBlockId}
           />
         </div>
 
