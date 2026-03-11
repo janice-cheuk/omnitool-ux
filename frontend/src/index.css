@@ -1,37 +1,49 @@
 :root {
-  --sidebar-w: 56px;
-  --right-panel-w: 360px;
-  --slots-panel-w: 200px;
-  --header-h: 56px;
-  --nav-bg: #1a1d21;
-  --main-bg: #25282c;
-  --panel-bg: #2d3136;
-  --card-bg: #35393e;
-  --border: #3d4248;
-  --text: #e4e6e8;
-  --text-muted: #9ca3ab;
-  --accent: #4a9eff;
-  --accent-hover: #6bb0ff;
-  --success: #34c759;
+  --sidebar-w: 80px;
+  --right-panel-w: 367px;
+  --slots-panel-w: 355px;
+  --header-h: 72px;
+  --nav-bg: #001529;
+  --main-bg: #f8f9fa;
+  --panel-bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --border: #dee5eb;
+  --text: #25252a;
+  --text-muted: #5d666f;
+  --text-placeholder: #a1b0b7;
+  --accent: #205ae3;
+  --accent-hover: #2b47e5;
+  --success: #099268;
   --error: #ff453a;
-  --user-bubble: #3d4248;
-  --font-sans: system-ui, -apple-system, sans-serif;
+  --user-bubble: #ebf0f5;
+  --positive-bg: #e6fcf5;
+  --positive-hover: #c3fae8;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  height: 100%;
+}
+
+body {
   font-family: var(--font-sans);
   background: var(--main-bg);
   color: var(--text);
-  min-height: 100vh;
 }
 
 #root {
+  width: 100%;
   min-height: 100vh;
+  height: 100%;
   display: flex;
 }
 

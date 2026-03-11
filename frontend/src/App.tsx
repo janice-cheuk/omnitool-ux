@@ -1,10 +1,27 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Component, type ReactNode } from 'react';
 import type { Document, Block, SlotDefinitionBlock, PendingAssistantDiff, AssistantStatus } from './types';
+import { StarterScreen, type StarterFormData } from './components/StarterScreen';
 import { TopHeader } from './components/TopHeader';
 import { FreeTextCanvas } from './components/editor/FreeTextCanvas';
-import { AssistantPanel } from './components/AssistantPanel';
 import { ReviewBar } from './components/ReviewBar';
 import styles from './App.module.css';
+
+// #region agent log
+class DebugErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    const payload = { sessionId: '24a1d3', location: 'App.tsx:ErrorBoundary', message: 'React render error', data: { errorMessage: error.message, stack: error.stack, componentStack: info?.componentStack }, timestamp: Date.now(), hypothesisId: 'H1' };
+    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' }, body: JSON.stringify(payload) }).catch(() => {});
+  }
+  render() {
+    if (this.state.hasError) return <div style={{ padding: 16, color: '#c00' }}>Something went wrong. Check debug logs.</div>;
+    return this.props.children;
+  }
+}
+// #endregion
 
 function genBlockId(): string {
   return `b-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -15,14 +32,16 @@ const initialDocument: Document = {
   title: 'Slot Filling Config',
   description: 'Define slots, validations, and conditions for your Omni Tool.',
   blocks: [],
-  freeTextContent:
-    'slot user_intent\nslot is_residential_service\n\nuser_intent in [new_service, transfer_service, stop_service, pending]\nis_residential_service in [yes, no]\n\nType freely — say "slot age", "validate X in [a,b,c]", "if X == Y then respond" — objects auto-detect as chips. Use / for commands, @ for slot refs.',
+  freeTextContent: '',
 };
 
 export default function App() {
+  const [screen, setScreen] = useState<'starter' | 'editor'>('starter');
+  const [_starterData, setStarterData] = useState<StarterFormData | null>(null);
+
   const [document, setDocument] = useState<Document>(initialDocument);
   const [agentTitle, setAgentTitle] = useState('Omnitools Slot Filling Demo');
-  const [toolName, setToolName] = useState('record_information');
+  const [toolName, setToolName] = useState('nrg_new_service');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [draftDirty, setDraftDirty] = useState(false);
   const [pendingDiff, setPendingDiff] = useState<PendingAssistantDiff | null>(null);
@@ -105,6 +124,17 @@ export default function App() {
 
   const onSlotPillClick = useCallback((_name: string) => {}, []);
 
+  const handleStarterSubmit = useCallback((data: StarterFormData) => {
+    setStarterData(data);
+    setToolName(data.toolName);
+    setDocument((prev) => ({ ...prev, description: data.description || prev.description }));
+    setScreen('editor');
+  }, []);
+
+  if (screen === 'starter') {
+    return <StarterScreen onSubmit={handleStarterSubmit} />;
+  }
+
   return (
     <>
       <nav className={styles.sidebar} role="navigation" aria-label="Global navigation">
@@ -124,17 +154,20 @@ export default function App() {
           onSave={onSave}
         />
 
-        <div className={styles.actionsRow}>
-          <button type="button" className={styles.actionBtn}>Omni Tool Assistant</button>
-          <button type="button" className={styles.actionBtn}>Advanced mode</button>
-          <button type="button" className={styles.actionBtn}>Slot Filling Engine</button>
-        </div>
-
         <div className={styles.editorArea}>
+          <DebugErrorBoundary>
           <FreeTextCanvas
             document={document}
             onDocumentChange={onDocumentChange}
+            toolName={toolName}
+            userPrompt={userPrompt}
+            thoughtDuration={thoughtDuration}
+            assistantStatus={assistantStatus}
+            createdSlotNames={createdSlotNames}
+            onSendAssistantPrompt={onSendAssistantPrompt}
+            onSlotPillClick={onSlotPillClick}
           />
+          </DebugErrorBoundary>
         </div>
 
         {pendingDiff && (
@@ -144,17 +177,6 @@ export default function App() {
           />
         )}
       </div>
-
-      <aside className={styles.rightPanel} role="complementary" aria-label="Assistant">
-        <AssistantPanel
-          userPrompt={userPrompt}
-          thoughtDuration={thoughtDuration}
-          assistantStatus={assistantStatus}
-          createdSlotNames={createdSlotNames}
-          onSendPrompt={onSendAssistantPrompt}
-          onSlotPillClick={onSlotPillClick}
-        />
-      </aside>
     </>
   );
 }
