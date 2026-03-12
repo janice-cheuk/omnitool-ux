@@ -23,6 +23,9 @@
 /* Inline placeholder on line 2: rendered from cursor anchor pseudo-element */
 .cursorAnchor {
   display: inline;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .cursorAnchor[data-line2-placeholder]::after {
   content: attr(data-line2-placeholder);
@@ -31,6 +34,7 @@
   line-height: inherit;
   font-family: var(--font-sans);
   vertical-align: baseline;
+  white-space: pre-wrap;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;

@@ -12,9 +12,11 @@ export function SlotsTOCFromSegments({
   selectedSegmentId,
   onSelectSlot,
 }: SlotsTOCFromSegmentsProps) {
-  const slotDefs = segments.filter((s): s is InlineSegment & { type: 'slot_def' } => s.type === 'slot_def');
+  const slotItems = segments.filter(
+    (s): s is InlineSegment & { slotName: string } => s.type === 'slot_def' || s.type === 'slot_ref'
+  );
   const seen = new Set<string>();
-  const ordered = slotDefs.filter((s) => {
+  const ordered = slotItems.filter((s) => {
     if (seen.has(s.slotName)) return false;
     seen.add(s.slotName);
     return true;
@@ -22,9 +24,13 @@ export function SlotsTOCFromSegments({
 
   if (ordered.length === 0) {
     return (
-      <div className={styles.empty}>
-        <p className={styles.emptyText}>No slots yet.</p>
-        <p className={styles.emptyHint}>Type &quot;slot name&quot; or use / to add.</p>
+      <div className={styles.emptyState}>
+        <div className={styles.defineSlotHeader}>
+          <p className={styles.defineSlotLabel}>Define a slot</p>
+        </div>
+        <p className={styles.defineSlotHint}>
+          Add a new slot on the canvas in order to configure the details.
+        </p>
       </div>
     );
   }

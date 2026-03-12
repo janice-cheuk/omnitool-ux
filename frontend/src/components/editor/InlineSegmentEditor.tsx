@@ -18,6 +18,9 @@ const VALIDATION_PHRASE: Record<ValidationType, string> = {
   is_not_empty: 'is not empty',
 };
 
+const CONTAINS_VALUE_PLACEHOLDER =
+  'Start typing using @ to define a value name. Make sure it is:\n                                                   • in snake_case\n                                                   • a unique name';
+
 function getSegmentSerializedLength(seg: InlineSegment): number {
   if (seg.type === 'text') return seg.value.length;
   if (seg.type === 'slot_ref') return 1 + seg.slotName.length;
@@ -45,7 +48,6 @@ function serializeDom(container: HTMLElement): string {
       if (el.getAttribute('data-placeholder-inline')) return;
       if (el.getAttribute('data-line-label')) return;
       if (el.getAttribute('data-cursor-anchor')) {
-        out += (el.textContent || '').replace(/\u200B/g, '');
         return;
       }
       const valType = el.getAttribute('data-validation-type') as ValidationType | null;
@@ -85,16 +87,27 @@ function getCaretCoordinates(container: HTMLElement, selection: Selection): { to
     const rect = container.getBoundingClientRect();
     return { top: rect.top + 16, left: rect.left + 16 };
   }
+  const anchorNode = selection.anchorNode as Node | null;
+  const anchorEl = anchorNode?.nodeType === Node.ELEMENT_NODE
+    ? (anchorNode as HTMLElement)
+    : (anchorNode?.parentElement as HTMLElement | null);
+  const cursorAnchorEl = anchorEl?.closest?.('[data-cursor-anchor][data-line2-placeholder]') as HTMLElement | null;
+  if (cursorAnchorEl?.parentElement === container) {
+    let prev: HTMLElement | null = cursorAnchorEl.previousElementSibling as HTMLElement | null;
+    while (prev && prev.getAttribute('data-line-label')) {
+      prev = prev.previousElementSibling as HTMLElement | null;
+    }
+    const prevRect = prev?.getBoundingClientRect();
+    if (prevRect) {
+      return { top: prevRect.bottom + 4, left: prevRect.right + 8 };
+    }
+  }
   const range = selection.getRangeAt(0);
   const rects = range.getClientRects();
   const rect = rects.length > 0 ? rects[0] : range.getBoundingClientRect();
   const looksInvalid = !rect || ((rect.left === 0 && rect.top === 0) || (rect.width === 0 && rect.height === 0));
   if (looksInvalid) {
-    const anchorNode = selection.anchorNode as Node | null;
     if (anchorNode && container.contains(anchorNode)) {
-      const anchorEl = anchorNode.nodeType === Node.ELEMENT_NODE
-        ? (anchorNode as HTMLElement)
-        : (anchorNode.parentElement as HTMLElement | null);
       const anchorRect = anchorEl?.getBoundingClientRect();
       if (anchorRect && (anchorRect.width > 0 || anchorRect.height > 0)) {
         return { top: anchorRect.bottom + 4, left: anchorRect.left };
@@ -228,6 +241,15 @@ function setCaretAtOffset(container: HTMLElement, offset: number): void {
   sel.addRange(range);
 }
 
+function isBadFocusTarget(node: HTMLElement | null): boolean {
+  if (!node || !node.isConnected) return true;
+  const rect = node.getBoundingClientRect();
+  if (rect.height <= 0) return true;
+  if (node.getAttribute('data-line-label')) return true;
+  if (node.getAttribute('data-cursor-anchor') && !node.getAttribute('data-line2-placeholder')) return true;
+  return false;
+}
+
 interface InlineSegmentEditorProps {
   content: string;
   onChange: (content: string) => void;
@@ -244,8 +266,6 @@ interface InlineSegmentEditorProps {
   validationPromptActive?: boolean;
   /** Explicit global focus request from parent transaction manager. */
   focusRequest?: { seq: number; offset: number; reason: string } | null;
-  /** Callback to acknowledge a focus request was applied. */
-  onFocusRequestConsumed?: (seq: number) => void;
   /** Increment to invalidate stale local caret refs after external inserts. */
   caretResetSeq?: number;
   debugInteractionId?: string | null;
@@ -270,7 +290,6 @@ export function InlineSegmentEditor({
   onCaretOffsetChange,
   validationPromptActive = false,
   focusRequest = null,
-  onFocusRequestConsumed,
   caretResetSeq = 0,
   debugInteractionId = null,
   debugSlotId = 'slot-1',
@@ -301,6 +320,7 @@ export function InlineSegmentEditor({
   const justAppliedRef = useRef(false);
 
   const segments = parseTextToSegmentsForEditor(content);
+  const afterContainsPlaceholder = getPlaceholderAfterSegment(segments);
 
   type RenderItem =
     | { type: 'label'; kind: 'define' | 'validation'; lineIndex: number }
@@ -340,6 +360,38 @@ export function InlineSegmentEditor({
       if (seg.type === 'slot_ref') hasSlotRef[lineIndex] = true;
       if (seg.type === 'validation') hasValidation[lineIndex] = true;
     }
+    const containsValidationIndex = segments.findIndex(
+      (s): s is InlineSegment & { type: 'validation' } => s.type === 'validation' && s.validationType === 'contains'
+    );
+    let containsValueProvided = false;
+    if (containsValidationIndex >= 0) {
+      const containsSeg = segments[containsValidationIndex] as InlineSegment & { type: 'validation' };
+      const val = containsSeg.value;
+      if (Array.isArray(val)) containsValueProvided = val.length > 0;
+      else if (typeof val === 'string') containsValueProvided = val.trim().length > 0;
+      else if (val != null) containsValueProvided = true;
+      if (!containsValueProvided) {
+        for (let i = containsValidationIndex + 1; i < segments.length; i++) {
+          const seg = segments[i];
+          if (seg.type === 'value_ref') {
+            containsValueProvided = true;
+            break;
+          }
+          if (seg.type === 'text') {
+            const newlineIdxInText = seg.value.indexOf('\n');
+            const sameLineText = newlineIdxInText >= 0 ? seg.value.slice(0, newlineIdxInText) : seg.value;
+            if (sameLineText.trim().length > 0) {
+              containsValueProvided = true;
+              break;
+            }
+            if (newlineIdxInText >= 0) break;
+            continue;
+          }
+          if (seg.type === 'validation') break;
+        }
+      }
+    }
+    const shouldShowContainsValuePlaceholder = containsValidationIndex >= 0 && !containsValueProvided;
     /* Show "Validation" label only when there is an actual validation segment on that line (Figma 842-6690). Do not show it when only slot + second line. */
     const items: RenderItem[] = [];
     const validationLabelLines = new Set<number>();
@@ -406,7 +458,10 @@ export function InlineSegmentEditor({
     const line2HasVisibleText = line2Text.replace(/\u200B/g, '').trim().length > 0;
     /* Figma 842-6690: show line-2 placeholder only while line 2 has no user text. */
     const hasAnyValidation = hasValidation.some(Boolean);
-    if (lineRanges.length > 1 && hasSlotRef[0] && !hasAnyValidation && !line2HasVisibleText) {
+    const shouldShowValuePlaceholder = shouldShowContainsValuePlaceholder || Boolean(afterContainsPlaceholder && !line2HasVisibleText);
+    if (shouldShowValuePlaceholder) {
+      items.push({ type: 'validation_line_placeholder', lineIndex: 1 });
+    } else if (lineRanges.length > 1 && hasSlotRef[0] && !hasAnyValidation && !line2HasVisibleText) {
       if (validationPromptActive) {
         items.push({ type: 'label', kind: 'validation', lineIndex: 1 });
       }
@@ -421,19 +476,19 @@ export function InlineSegmentEditor({
         validationLabelCount: items.filter((i) => i.type === 'label' && i.kind === 'validation').length,
         linePlaceholderCount: items.filter((i) => i.type === 'validation_line_placeholder').length,
         validationPromptActive,
+        shouldShowContainsValuePlaceholder,
       },
       'H3'
     );
     // #endregion
     return items;
-  }, [content, segments, validationPromptActive]);
+  }, [afterContainsPlaceholder, content, segments, validationPromptActive]);
 
   /* Caret offset in serialized content so we can place placeholder at (cursor) placeholder text */
   const [caretOffset, setCaretOffsetState] = useState<number | null>(null);
   const effectiveCaretOffset = caretOffset ?? content.length;
 
   /* Inline placeholder (Notion-style): real span so it's always visible at typing position. */
-  const afterContainsPlaceholder = getPlaceholderAfterSegment(segments);
   const placeholderText: string =
     afterContainsPlaceholder ??
     (segments.length === 0 ? (placeholder ?? PLACEHOLDER_A) : PLACEHOLDER_B);
@@ -459,13 +514,6 @@ export function InlineSegmentEditor({
       }
       if (item.type !== 'segment') continue;
       const { segment, segStart, segEnd } = item;
-      if (
-        item.lineIndex === 1 &&
-        out[out.length - 1]?.type === 'label' &&
-        (out[out.length - 1] as { kind: string }).kind === 'validation'
-      ) {
-        out.push(cursorAnchor);
-      }
       const caretInSegment = effectiveCaretOffset >= segStart && effectiveCaretOffset < segEnd;
       if (!caretInSegment) {
         out.push(item);
@@ -575,8 +623,37 @@ export function InlineSegmentEditor({
         onSlashKey(anchor, insertOffset);
         return;
       }
+
+      const isPrintable = key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+      const isBackspace = key === 'Backspace';
+      const isDelete = key === 'Delete';
+
+      if (!isPrintable && !isBackspace && !isDelete) return;
+      if (!sel || sel.rangeCount === 0) return;
+
+      e.preventDefault();
+      const currentContent = serializeDom(el);
+      const offset = getCaretOffset(el, sel);
+
+      let newContent: string;
+      let newOffset: number;
+
+      if (isPrintable) {
+        newContent = currentContent.slice(0, offset) + key + currentContent.slice(offset);
+        newOffset = offset + 1;
+      } else if (isBackspace) {
+        if (offset <= 0) return;
+        newContent = currentContent.slice(0, offset - 1) + currentContent.slice(offset);
+        newOffset = offset - 1;
+      } else {
+        if (offset >= currentContent.length) return;
+        newContent = currentContent.slice(0, offset) + currentContent.slice(offset + 1);
+        newOffset = offset;
+      }
+
+      applyChange(newContent, newOffset);
     },
-    [onSlashKey]
+    [applyChange, onSlashKey]
   );
 
   const handleBeforeInput = useCallback(
@@ -822,7 +899,13 @@ export function InlineSegmentEditor({
   }, [handleInput]);
 
   const hasValidationLinePlaceholder = renderItems.some((r) => r.type === 'validation_line_placeholder');
-  const line2PlaceholderText = validationPromptActive ? 'validate that the value' : PLACEHOLDER_B;
+  const containsValidationSelected = segments.some(
+    (s): s is InlineSegment & { type: 'validation' } => s.type === 'validation' && s.validationType === 'contains'
+  );
+  const line2PlaceholderText =
+    containsValidationSelected
+      ? CONTAINS_VALUE_PLACEHOLDER
+      : afterContainsPlaceholder ?? (validationPromptActive ? '/ validate that the value' : PLACEHOLDER_B);
 
   useEffect(() => {
     caretOffsetRef.current = null;
@@ -846,6 +929,12 @@ export function InlineSegmentEditor({
       anchorNode?.nodeType === Node.ELEMENT_NODE
         ? (anchorNode as HTMLElement)
         : (anchorNode?.parentElement ?? null);
+    if (isBadFocusTarget(anchorElement)) {
+      const endOffset = serializeDom(el).length;
+      setCaretAtOffset(el, endOffset);
+      caretOffsetRef.current = endOffset;
+      setCaretOffsetState(endOffset);
+    }
     const anchorRect = anchorElement?.getBoundingClientRect();
     // #region agent log
     logInlineRender(
@@ -865,8 +954,7 @@ export function InlineSegmentEditor({
       'H4'
     );
     // #endregion
-    onFocusRequestConsumed?.(focusRequest.seq);
-  }, [focusRequest, onFocusRequestConsumed]);
+  }, [focusRequest]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -930,7 +1018,9 @@ export function InlineSegmentEditor({
               return (
                 <span
                   key="cursor-anchor-validation-line"
+                  contentEditable={false}
                   className={styles.cursorAnchor}
+                  data-placeholder-inline
                   data-cursor-anchor
                   data-line2-placeholder={hasValidationLinePlaceholder ? line2PlaceholderText : undefined}
                 >

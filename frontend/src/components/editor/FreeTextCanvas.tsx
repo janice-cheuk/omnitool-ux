@@ -221,10 +221,6 @@ export function FreeTextCanvas({
     setCaretAnchor(anchor);
   }, []);
 
-  const handleFocusRequestConsumed = useCallback((seq: number) => {
-    setFocusRequest((current) => (current && current.seq === seq ? null : current));
-  }, []);
-
   const VALIDATION_PHRASE: Record<ValidationType, string> = {
     contains: 'contains',
     does_not_contain: 'does not contain',
@@ -574,7 +570,6 @@ export function FreeTextCanvas({
                       }}
                       validationPromptActive={isActiveCard && validationPromptMenu != null}
                       focusRequest={isActiveCard ? focusRequest : null}
-                      onFocusRequestConsumed={handleFocusRequestConsumed}
                       caretResetSeq={caretResetSeq}
                       debugInteractionId={debugInteractionRef.current}
                       debugSlotId={card.id}

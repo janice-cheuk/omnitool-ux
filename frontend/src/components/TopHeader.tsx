@@ -13,17 +13,13 @@ interface TopHeaderProps {
 
 export function TopHeader({
   agentTitle,
-  toolName,
   lastSavedAt,
   draftDirty,
   onAgentTitleChange,
-  onToolNameChange,
   onSave,
 }: TopHeaderProps) {
   const [editingTitle, setEditingTitle] = useState(false);
-  const [editingTool, setEditingTool] = useState(false);
   const [titleValue, setTitleValue] = useState(agentTitle);
-  const [toolValue, setToolValue] = useState(toolName);
 
   const commitTitle = () => {
     setEditingTitle(false);
@@ -32,18 +28,10 @@ export function TopHeader({
     onAgentTitleChange(v);
   };
 
-  const commitTool = () => {
-    setEditingTool(false);
-    const v = toolValue.trim() || toolName;
-    setToolValue(v);
-    onToolNameChange(v);
-  };
-
   return (
     <header className={styles.header}>
-      <div className={styles.topRow}>
-        <div className={styles.agentTitleRow}>
-          <span className={styles.agentLabel}>AI agent title</span>
+      <div className={styles.left}>
+        <div className={styles.agentBlock}>
           {editingTitle ? (
             <input
               className={styles.inlineInput}
@@ -74,63 +62,30 @@ export function TopHeader({
             </>
           )}
         </div>
+      </div>
+
+      <div className={styles.center}>
         <div className={styles.tabs}>
-          <button type="button" className={styles.tab}>Global</button>
+          <button type="button" className={styles.tabActive}>Global</button>
           <button type="button" className={styles.tab}>subAgents</button>
         </div>
       </div>
 
-      <div className={styles.toolRow}>
-        <span className={styles.toolLabel}>Omni Tool</span>
-        {editingTool ? (
-          <input
-            className={styles.inlineInput}
-            value={toolValue}
-            onChange={(e) => setToolValue(e.target.value)}
-            onBlur={commitTool}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitTool();
-              if (e.key === 'Escape') {
-                setToolValue(toolName);
-                setEditingTool(false);
-              }
-            }}
-            autoFocus
-            aria-label="Edit tool name"
-          />
-        ) : (
-          <>
-            <span className={styles.toolName}>{toolName}</span>
-            <button
-              type="button"
-              className={styles.pencilBtn}
-              onClick={() => setEditingTool(true)}
-              aria-label="Edit tool name"
-            >
-              ✎
-            </button>
-          </>
-        )}
-      </div>
-
-      <div className={styles.saveRow}>
+      <div className={styles.right}>
         {lastSavedAt && (
           <span className={styles.lastSaved}>
-            Last saved: {lastSavedAt.toLocaleTimeString()}
+            Last saved: {lastSavedAt.toLocaleDateString()}, {lastSavedAt.toLocaleTimeString()}
           </span>
         )}
-        <div className={styles.saveDropdown}>
-          <button
-            type="button"
-            className={styles.saveBtn}
-            onClick={onSave}
-            disabled={!draftDirty}
-            aria-label="Save draft"
-          >
-            Save
-          </button>
-          <button type="button" className={styles.saveCaret} aria-hidden>▾</button>
-        </div>
+        <button
+          type="button"
+          className={styles.saveBtn}
+          onClick={onSave}
+          disabled={!draftDirty}
+          aria-label="Save draft"
+        >
+          Save ▾
+        </button>
       </div>
     </header>
   );

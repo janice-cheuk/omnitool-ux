@@ -70,19 +70,30 @@
   background: var(--error);
 }
 
-.empty {
-  padding: 12px;
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
 }
 
-.emptyText {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0 0 4px 0;
+.defineSlotHeader {
+  margin-bottom: 8px;
 }
 
-.emptyHint {
+.defineSlotLabel {
   font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.defineSlotHint {
+  font-size: 11px;
+  font-weight: 425;
+  line-height: 1.55;
   color: var(--text-muted);
   margin: 0;
-  opacity: 0.8;
+  text-align: center;
+  padding: 0 6px;
 }

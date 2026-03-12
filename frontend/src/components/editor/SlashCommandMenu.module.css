@@ -11,6 +11,26 @@
   padding: 8px 0;
 }
 
+.controlsMenu {
+  width: 245px;
+  min-width: 245px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 0 11.3px rgba(0, 0, 0, 0.25);
+  background: var(--background-controls, #fff);
+  padding: 0;
+}
+
+.simpleValidationMenu {
+  width: 245px;
+  min-width: 245px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 0 11.3px rgba(0, 0, 0, 0.25);
+  background: var(--background-controls, #fff);
+  padding: 0;
+}
+
 .section {
   padding: 4px 0;
 }
@@ -54,4 +74,56 @@
 .chip {
   font-family: ui-monospace, monospace;
   color: var(--accent);
+}
+
+.controlsItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.controlsSectionLabel {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--content-secondary, #5d666f);
+  padding: 12px 12px 8px;
+}
+
+.controlsItem:hover {
+  background: #f8fafb;
+}
+
+.controlTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999999px;
+  background: #fff;
+}
+
+.controlIcon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.controlText {
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 550;
+}
+
+.validateTag {
+  color: var(--extended-content-grape, #be4bdb);
+}
+
+.conditionTag {
+  color: var(--extended-content-cyan, #1098ad);
 }

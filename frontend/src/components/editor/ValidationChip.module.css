@@ -1,0 +1,180 @@
+.chipWrapper {
+  position: relative;
+  display: inline;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 22px;
+  background: #e9ecef;
+  border: 0.5px solid var(--border);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #495057;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin: 0 2px;
+}
+
+.chip:hover {
+  background: #dee2e6;
+}
+
+.chipLabel {
+  font-family: ui-monospace, monospace;
+}
+
+.chipChevron {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 100;
+  min-width: 320px;
+  max-width: 400px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+  margin: 0 0 4px 0;
+}
+
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.dateInput {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.dateInput::placeholder {
+  color: var(--text-placeholder);
+}
+
+.applyBtn {
+  align-self: flex-start;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 550;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.applyBtn:hover {
+  background: var(--accent-hover);
+}
+
+/* Value name chip (super subtle white) for contains/does_not_contain value field */
+.valueChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  margin: 0 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6c757d;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  cursor: default;
+  font-family: ui-monospace, monospace;
+}
+
+.valueField {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.valueField:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.valueField[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--text-placeholder);
+  pointer-events: none;
+}
+
+.valueFieldPlaceholder {
+  color: var(--text-placeholder);
+  pointer-events: none;
+  user-select: none;
+}

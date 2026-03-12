@@ -1,47 +1,33 @@
 .header {
-  padding: 16px 0;
+  position: relative;
+  padding: 12px 24px;
+  background: var(--card-bg);
   border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
-}
-
-.topRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  height: 72px;
+  flex-shrink: 0;
 }
 
-.agentTitleRow {
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agentBlock {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.agentLabel {
-  font-size: 12px;
-  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .agentTitle {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.toolRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.toolLabel {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.toolName {
-  font-size: 14px;
-  font-family: ui-monospace, monospace;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text);
 }
 
 .pencilBtn {
@@ -53,72 +39,88 @@
 
 .pencilBtn:hover {
   color: var(--accent);
-  background: var(--card-bg);
+  background: var(--user-bubble);
 }
 
 .inlineInput {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 650;
   color: var(--text);
-  min-width: 160px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-width: 200px;
+}
+
+.inlineInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
+  padding: 4px;
+  background: #f1f3f5;
+  border-radius: 8px;
 }
 
-.tab {
-  padding: 6px 12px;
-  font-size: 13px;
-  border-radius: 6px;
+.tab,
+.tabActive {
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: none;
+  background: none;
   color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tabActive {
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 .tab:hover {
   color: var(--text);
-  background: var(--card-bg);
 }
 
-.saveRow {
+.right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 12px;
 }
 
 .lastSaved {
   font-size: 12px;
-  color: var(--text-muted);
-}
-
-.saveDropdown {
-  display: flex;
-  align-items: center;
+  color: var(--text);
 }
 
 .saveBtn {
-  padding: 6px 14px;
-  font-size: 13px;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 6px;
+  padding: 0 12px;
+  height: 30px;
+  font-size: 12px;
+  font-weight: 550;
+  background: var(--main-bg);
+  color: var(--text-placeholder);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--user-bubble);
+  color: var(--text);
 }
 
 .saveBtn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
-}
-
-.saveCaret {
-  padding: 6px 4px;
-  font-size: 10px;
-  color: var(--text-muted);
 }

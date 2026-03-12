@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
 import type { SlotConfig } from '../../types';
-import { parseTextToSegmentsForEditor, getInsertNewlineBeforeValidationIndex } from '../../lib/parseInline';
+import { parseTextToSegmentsForEditor } from '../../lib/parseInline';
 import { PLACEHOLDER_B } from '../../lib/placeholderHelpers';
 import { InlineSegmentEditor } from './InlineSegmentEditor';
 import styles from './FreeTextEditor.module.css';
@@ -20,7 +19,6 @@ interface FreeTextEditorProps {
   onCaretOffsetChange?: (offset: number, anchor: { top: number; left: number }) => void;
   validationPromptActive?: boolean;
   focusRequest?: { seq: number; offset: number; reason: string } | null;
-  onFocusRequestConsumed?: (seq: number) => void;
   caretResetSeq?: number;
   debugInteractionId?: string | null;
   debugSlotId?: string;
@@ -43,30 +41,10 @@ export function FreeTextEditor({
   onCaretOffsetChange,
   validationPromptActive = false,
   focusRequest = null,
-  onFocusRequestConsumed,
   caretResetSeq = 0,
   debugInteractionId = null,
   debugSlotId = 'slot-1',
 }: FreeTextEditorProps) {
-  // #region agent log
-  const logFreeTextNormalization = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
-    if (typeof fetch === 'undefined') return;
-    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' },
-      body: JSON.stringify({
-        sessionId: '24a1d3',
-        runId: 'ghost-empty-row-debug',
-        hypothesisId,
-        location: 'FreeTextEditor.tsx',
-        message,
-        data,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  };
-  // #endregion
-
   const segments = parseTextToSegmentsForEditor(content);
   const slotRefs = segments.filter((s) => s.type === 'slot_ref');
   const lastSlotRef = slotRefs[slotRefs.length - 1];
@@ -77,30 +55,6 @@ export function FreeTextEditor({
   const hasSlots = slotNames.length > 0 || Object.keys(slotConfigs).length > 0;
   const effectivePlaceholder =
     placeholder ?? (hasSlots ? PLACEHOLDER_B : PLACEHOLDER_INITIAL);
-
-  /* When validation is present but not on its own line, insert newline before validation keyword so it moves to line 2. */
-  useEffect(() => {
-    const insertAt = getInsertNewlineBeforeValidationIndex(content);
-    if (insertAt != null) {
-      // #region agent log
-      logFreeTextNormalization(
-        'newline normalization before validation',
-        {
-          interactionId: debugInteractionId,
-          insertAt,
-          contentLen: content.length,
-          newlineCount: (content.match(/\n/g) ?? []).length,
-          hasValidationKeyword: /\b(contains|does not contain|is from a defined list|satisfies a numeric condition|satisfies a date condition|== true|is not empty)\b/.test(
-            content
-          ),
-        },
-        'H2'
-      );
-      // #endregion
-      const newContent = content.slice(0, insertAt) + '\n' + content.slice(insertAt);
-      onChange(newContent);
-    }
-  }, [content, debugInteractionId, onChange]);
 
   return (
     <div className={styles.wrapper}>
@@ -117,7 +71,6 @@ export function FreeTextEditor({
         onCaretOffsetChange={onCaretOffsetChange}
         validationPromptActive={validationPromptActive}
         focusRequest={focusRequest}
-        onFocusRequestConsumed={onFocusRequestConsumed}
         caretResetSeq={caretResetSeq}
         debugInteractionId={debugInteractionId}
         debugSlotId={debugSlotId}

@@ -35,3 +35,8 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+
+.createLabel {
+  color: var(--success);
+  font-weight: 500;
+}

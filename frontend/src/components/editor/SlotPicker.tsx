@@ -7,6 +7,11 @@ interface SlotPickerProps {
   filter: string;
   onSelect: (slotName: string) => void;
   onClose: () => void;
+  allowCreate?: boolean;
+}
+
+function isValidSlotName(s: string): boolean {
+  return /^[a-z][a-z0-9_]*$/.test(s);
 }
 
 export function SlotPicker({
@@ -15,49 +20,56 @@ export function SlotPicker({
   filter,
   onSelect,
   onClose,
+  allowCreate = false,
 }: SlotPickerProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const filtered = slotNames.filter((n) =>
     n.toLowerCase().includes(filter.toLowerCase())
   );
+  const canCreate = allowCreate && filter.length > 0 && isValidSlotName(filter) && !slotNames.includes(filter);
+  const options = canCreate ? [filter, ...filtered] : filtered;
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [filter]);
+  }, [filter, canCreate]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
+        setSelectedIndex((i) => Math.min(i + 1, options.length - 1));
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(i - 1, 0));
       }
-      if (e.key === 'Enter' && filtered[selectedIndex]) {
+      if (e.key === 'Enter' && options[selectedIndex]) {
         e.preventDefault();
-        onSelect(filtered[selectedIndex]);
+        onSelect(options[selectedIndex]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filtered, selectedIndex, onSelect, onClose]);
+  }, [options, selectedIndex, onSelect, onClose]);
 
-  if (!anchorRect || slotNames.length === 0) return null;
+  if (!anchorRect) return null;
 
   return (
     <div
       className={styles.menu}
       style={{ top: anchorRect.top, left: anchorRect.left }}
       role="listbox"
-      aria-label="Select slot"
+      aria-label="Select or create slot"
     >
-      {filtered.length === 0 ? (
-        <div className={styles.empty}>No slots match</div>
+      {options.length === 0 ? (
+        <div className={styles.empty}>
+          {filter.length > 0
+            ? 'Use snake_case (e.g. user_intent)'
+            : 'Type a slot name or select existing'}
+        </div>
       ) : (
-        filtered.map((name, i) => (
+        options.map((name, i) => (
           <button
             key={name}
             type="button"
@@ -66,7 +78,11 @@ export function SlotPicker({
             role="option"
             aria-selected={i === selectedIndex}
           >
-            @{name}
+            {i === 0 && canCreate ? (
+              <span className={styles.createLabel}>Create @{name}</span>
+            ) : (
+              `@${name}`
+            )}
           </button>
         ))
       )}

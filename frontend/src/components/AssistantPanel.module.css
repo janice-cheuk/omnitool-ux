@@ -3,13 +3,94 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 20px;
+  padding: 24px 16px 16px;
 }
 
 .content {
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+}
+
+.welcomeState {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.welcomeTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.welcomeDesc {
+  font-size: 14px;
+  font-weight: 425;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+}
+
+.welcomeQuestion {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.starterCards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.starterCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.starterCard:hover:not(:disabled) {
+  background: var(--user-bubble);
+  border-color: var(--border);
+}
+
+.starterCard:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.starterIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+}
+
+.starterLabel {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.starterChevron {
+  font-size: 16px;
+  color: var(--text-muted);
 }
 
 .userBubble {
@@ -79,25 +160,34 @@
 
 .composer {
   flex-shrink: 0;
+  padding: 0 16px 16px;
+}
+
+.composerBar {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 8px;
+  box-shadow: 0 8px 28px -6px rgba(24, 39, 75, 0.12);
 }
 
 .composerInput {
-  width: 100%;
-  min-height: 80px;
-  padding: 12px 14px;
+  flex: 1;
+  min-height: 38px;
+  padding: 0 8px;
   font-size: 14px;
-  background: var(--main-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: none;
+  border: none;
   color: var(--text);
-  resize: vertical;
 }
 
 .composerInput::placeholder {
-  color: var(--text-muted);
+  color: var(--text-placeholder);
 }
 
 .composerInput:disabled {
@@ -105,13 +195,21 @@
   cursor: not-allowed;
 }
 
+.composerInput:focus {
+  outline: none;
+}
+
 .sendBtn {
-  align-self: flex-end;
-  padding: 8px 20px;
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   background: var(--accent);
   color: #fff;
-  border-radius: 8px;
+  border-radius: 9px;
+  font-size: 12px;
 }
 
 .sendBtn:hover:not(:disabled) {

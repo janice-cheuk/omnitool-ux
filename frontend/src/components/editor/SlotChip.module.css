@@ -1,0 +1,117 @@
+.chipWrapper {
+  position: relative;
+  display: inline;
+}
+
+/* Slot chip - Figma 842-6690 default (section bg), 842-6673 hover/open (green) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 22px;
+  background: var(--user-bubble, #ebf0f5);
+  border: none;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--extended-content-green, #2b8a3e);
+  cursor: pointer;
+  transition: background 0.15s;
+  margin: 0 2px;
+}
+
+.chip:hover,
+.chip[aria-expanded="true"] {
+  background: var(--extended-bg-green, #d3f9d8);
+}
+
+.chipIcon {
+  width: 14px;
+  height: 14px;
+  font-size: 12px;
+  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chipName {
+  font-family: var(--font-sans);
+}
+
+.chipChevron {
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  opacity: 0.8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dropdown panel - Figma 842-6673 */
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 100;
+  min-width: 260px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdownSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.select,
+.input {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.applyBtn {
+  align-self: flex-start;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 550;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.applyBtn:hover {
+  background: var(--accent-hover);
+}

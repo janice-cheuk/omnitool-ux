@@ -1,12 +1,13 @@
 import type { ConditionBlock as ConditionBlockType, ConditionAction } from '../../types';
+import { CONDITION_ACTION_LABELS } from '../../lib/slotAuthoring';
 import styles from './ConditionBlock.module.css';
 
 const ACTION_LABELS: Record<ConditionAction['kind'], string> = {
-  respond: 'Respond',
-  invoke_tool: 'Invoke tool',
-  update_slot: 'Update slot',
-  transfer: 'Transfer',
-  end_conversation: 'End',
+  respond: CONDITION_ACTION_LABELS.respond,
+  invoke_tool: CONDITION_ACTION_LABELS.invoke_tool,
+  update_slot: CONDITION_ACTION_LABELS.update_slot,
+  transfer: CONDITION_ACTION_LABELS.transfer,
+  end_conversation: CONDITION_ACTION_LABELS.end_conversation,
 };
 
 interface ConditionBlockProps {
