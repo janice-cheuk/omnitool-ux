@@ -51,12 +51,27 @@ export interface ConditionBlock extends BaseBlock {
   action: ConditionAction;
 }
 
+/** Saved config for a slot (from the green chip dropdown); shared across all uses of that slot. */
+export interface SlotConfig {
+  slotType: SlotType;
+  dependencies: string[];
+  defaultValues: string;
+}
+
+export interface SlotCardDraft {
+  id: string;
+  content: string;
+}
+
 export interface Document {
   id: string;
   title: string;
   description: string;
   blocks: Block[];
   freeTextContent?: string;
+  slotCards?: SlotCardDraft[];
+  /** Config per slot name (from chip dropdown); used whenever that slot's chip is opened. */
+  slotConfigs?: Record<string, SlotConfig>;
 }
 
 export interface ValidationRule {

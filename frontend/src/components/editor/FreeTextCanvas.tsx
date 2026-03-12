@@ -1,7 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Document, AssistantStatus, SlotConfig } from '../../types';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import type { Document, AssistantStatus, SlotConfig, SlotCardDraft } from '../../types';
 import { parseTextToSegmentsForEditor, getSlotNamesFromSegments, getSegmentStarts, getSegmentSerializedLength } from '../../lib/parseInline';
 import type { ValidationType } from '../../lib/parseInline';
+import { ensureValidateRowState } from '../../lib/validateRow';
+import { getNextShortcutTrigger } from '../../lib/shortcutTriggers';
+import { appendSlotCard, getDocumentSlotCards, getSlotNamesAcrossCards, updateSlotCardContent } from '../../lib/slotCards';
 import type { SlashCommand } from './SlashCommandMenu';
 import { FreeTextEditor } from './FreeTextEditor';
 import { SlashCommandMenu } from './SlashCommandMenu';
@@ -32,24 +35,60 @@ export function FreeTextCanvas({
   onSendAssistantPrompt,
   onSlotPillClick,
 }: FreeTextCanvasProps) {
+  // #region agent log
+  const logValidateFlow = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
+    if (typeof fetch === 'undefined') return;
+    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' },
+      body: JSON.stringify({
+        sessionId: '24a1d3',
+        runId: 'dup-validate-focus-debug',
+        hypothesisId,
+        location: 'FreeTextCanvas.tsx',
+        message,
+        data,
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  };
+  // #endregion
+
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [insertMenu, setInsertMenu] = useState<{ anchor: { top: number; left: number }; insertOffset: number } | null>(null);
+  const [validationPromptMenu, setValidationPromptMenu] = useState<{ anchor: { top: number; left: number }; insertOffset: number } | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ seq: number; offset: number; reason: string } | null>(null);
+  const [caretResetSeq, setCaretResetSeq] = useState(0);
   const [caretOffset, setCaretOffset] = useState<number | null>(null);
   const [caretAnchor, setCaretAnchor] = useState<{ top: number; left: number } | null>(null);
   const [afterSlotMenu, setAfterSlotMenu] = useState<{ slotName: string; anchor: { top: number; left: number }; insertOffset: number } | null>(null);
   const [afterConditionMenu, setAfterConditionMenu] = useState<{ anchor: { top: number; left: number }; insertOffset: number } | null>(null);
   const [plusButtonTop, setPlusButtonTop] = useState<number>(12);
+  const [activeSlotId, setActiveSlotId] = useState<string>('slot-1');
   const editorRef = useRef<HTMLDivElement>(null);
   const slotRowRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
+  const focusSeqRef = useRef(0);
+  const debugInteractionRef = useRef<string | null>(null);
 
-  const content = document.freeTextContent ?? '';
+  const slotCards = useMemo<SlotCardDraft[]>(() => getDocumentSlotCards(document), [document]);
+  const activeSlot = slotCards.find((card) => card.id === activeSlotId) ?? slotCards[0];
+  const content = activeSlot?.content ?? '';
   const segments = parseTextToSegmentsForEditor(content);
-  const slotNames = getSlotNamesFromSegments(segments);
+  const slotNames = useMemo(() => getSlotNamesAcrossCards(slotCards), [slotCards]);
+  const currentSlotNames = getSlotNamesFromSegments(segments);
+  const canShowInsertAffordance = currentSlotNames.length > 0;
   const slotConfigs = document.slotConfigs ?? {};
 
   useEffect(() => {
-    if (insertMenu != null || caretOffset == null || caretAnchor == null) {
+    if (!activeSlot) return;
+    if (!slotCards.some((card) => card.id === activeSlotId)) {
+      setActiveSlotId(slotCards[0]?.id ?? 'slot-1');
+    }
+  }, [activeSlot, activeSlotId, slotCards]);
+
+  useEffect(() => {
+    if (insertMenu != null || validationPromptMenu != null || caretOffset == null || caretAnchor == null) {
       setAfterSlotMenu(null);
       setAfterConditionMenu(null);
       return;
@@ -74,17 +113,21 @@ export function FreeTextCanvas({
     }
     setAfterSlotMenu(null);
     setAfterConditionMenu(null);
-  }, [content, caretOffset, caretAnchor?.top, caretAnchor?.left, insertMenu]);
+  }, [content, caretOffset, caretAnchor?.top, caretAnchor?.left, insertMenu, validationPromptMenu]);
 
+
+  const handleSlotContentChange = useCallback(
+    (slotId: string, newContent: string) => {
+      onDocumentChange(updateSlotCardContent(document, slotCards, slotId, newContent));
+    },
+    [activeSlotId, document, onDocumentChange, slotCards]
+  );
 
   const handleContentChange = useCallback(
     (newContent: string) => {
-      onDocumentChange({
-        ...document,
-        freeTextContent: newContent,
-      });
+      handleSlotContentChange(activeSlot.id, newContent);
     },
-    [document, onDocumentChange]
+    [activeSlot.id, handleSlotContentChange]
   );
 
   const handleSlotConfigChange = useCallback(
@@ -97,35 +140,7 @@ export function FreeTextCanvas({
     [document, onDocumentChange]
   );
 
-  const primarySlotName = slotNames[0] ?? '';
-  const [editingSlotName, setEditingSlotName] = useState(primarySlotName);
-  useEffect(() => {
-    setEditingSlotName(primarySlotName);
-  }, [primarySlotName]);
-
-  const handleSlotNameRename = useCallback(
-    (newName: string) => {
-      const trimmed = newName.trim().toLowerCase().replace(/\s+/g, '_');
-      if (!trimmed || trimmed === primarySlotName) return;
-      const currentContent = document.freeTextContent ?? '';
-      const configs = document.slotConfigs ?? {};
-      const newContent = currentContent.replace(
-        new RegExp(`@${primarySlotName}\\b`, 'g'),
-        `@${trimmed}`
-      );
-      const newConfigs = { ...configs };
-      if (configs[primarySlotName]) {
-        newConfigs[trimmed] = configs[primarySlotName];
-        delete newConfigs[primarySlotName];
-      }
-      onDocumentChange({
-        ...document,
-        freeTextContent: newContent,
-        slotConfigs: newConfigs,
-      });
-    },
-    [primarySlotName, document, onDocumentChange]
-  );
+  const primarySlotName = currentSlotNames[0] ?? '';
 
   const handleSelectSlot = useCallback((segmentId: string) => {
     setSelectedSegmentId(segmentId);
@@ -141,25 +156,73 @@ export function FreeTextCanvas({
     setPlusButtonTop(Math.max(halfBtn, lineCenter - halfBtn));
   }, []);
 
-  const openInsertMenuAtCaret = useCallback((anchor: { top: number; left: number }, insertOffset: number) => {
-    setInsertMenu({ anchor, insertOffset });
-  }, []);
+  const triggerInlineCommandMenu = useCallback(
+    ({
+      slotId,
+      editorId,
+      source,
+      trigger,
+      anchor,
+      insertOffset,
+    }: {
+      slotId: string;
+      editorId: string;
+      source: 'keyboard' | 'insertButton';
+      trigger: string;
+      anchor: { top: number; left: number };
+      insertOffset: number;
+    }) => {
+      if (trigger !== '/') return;
+      setInsertMenu({ anchor, insertOffset });
+      focusSeqRef.current += 1;
+      setFocusRequest({ seq: focusSeqRef.current, offset: insertOffset, reason: `${source}-${slotId}-${editorId}` });
+    },
+    []
+  );
+
+  const openInsertMenuAtCaret = useCallback(
+    (anchor: { top: number; left: number }, insertOffset: number, slotId: string = activeSlot.id) => {
+      setActiveSlotId(slotId);
+      triggerInlineCommandMenu({
+        slotId,
+        editorId: 'slot-editor',
+        source: 'keyboard',
+        trigger: '/',
+        anchor,
+        insertOffset,
+      });
+    },
+    [activeSlot.id, triggerInlineCommandMenu]
+  );
 
   const openInsertMenuAtPlus = useCallback(() => {
-    const btn = plusButtonRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    setInsertMenu({
-      anchor: { top: rect.bottom + 4, left: rect.left },
-      insertOffset: content.length,
+    const trigger = getNextShortcutTrigger({ slotId: activeSlot.id, editorId: 'slot-editor' });
+    const editorEl = editorRef.current?.querySelector(`[data-slot-card-id="${activeSlot.id}"] [data-role="slot-editor"]`) as HTMLElement | null;
+    const editorRect = editorEl?.getBoundingClientRect();
+    const anchor = caretAnchor ?? {
+      top: (editorRect?.top ?? 0) + 24,
+      left: (editorRect?.left ?? 0) + 16,
+    };
+    const insertOffset = caretOffset ?? content.length;
+    triggerInlineCommandMenu({
+      slotId: activeSlot.id,
+      editorId: 'slot-editor',
+      source: 'insertButton',
+      trigger,
+      anchor,
+      insertOffset,
     });
-  }, [content.length]);
+  }, [activeSlot.id, caretAnchor, caretOffset, content.length, triggerInlineCommandMenu]);
 
   const closeInsertMenu = useCallback(() => setInsertMenu(null), []);
 
   const onCaretOffsetChange = useCallback((offset: number, anchor: { top: number; left: number }) => {
     setCaretOffset(offset);
     setCaretAnchor(anchor);
+  }, []);
+
+  const handleFocusRequestConsumed = useCallback((seq: number) => {
+    setFocusRequest((current) => (current && current.seq === seq ? null : current));
   }, []);
 
   const VALIDATION_PHRASE: Record<ValidationType, string> = {
@@ -176,10 +239,20 @@ export function FreeTextCanvas({
     (cmd: SlashCommand) => {
       if (cmd.kind !== 'add_validation_type' || !afterSlotMenu) return;
       const phrase = VALIDATION_PHRASE[cmd.validationType];
+      if (segments.some((s) => s.type === 'validation')) {
+        focusSeqRef.current += 1;
+        setFocusRequest({ seq: focusSeqRef.current, offset: content.length, reason: 'after-slot-existing-validation' });
+        setAfterSlotMenu(null);
+        return;
+      }
       const newContent =
         content.slice(0, afterSlotMenu.insertOffset) + ' ' + phrase + ' ' + content.slice(afterSlotMenu.insertOffset);
+      setCaretResetSeq((v) => v + 1);
       handleContentChange(newContent);
+      focusSeqRef.current += 1;
+      setFocusRequest({ seq: focusSeqRef.current, offset: newContent.length, reason: 'after-slot-validation-type' });
       setAfterSlotMenu(null);
+      setValidationPromptMenu(null);
     },
     [afterSlotMenu, content, handleContentChange]
   );
@@ -189,10 +262,90 @@ export function FreeTextCanvas({
       if (cmd.kind !== 'add_condition_action' || !afterConditionMenu) return;
       const newContent =
         content.slice(0, afterConditionMenu.insertOffset) + ' ' + cmd.action + ' ' + content.slice(afterConditionMenu.insertOffset);
+      setCaretResetSeq((v) => v + 1);
       handleContentChange(newContent);
+      focusSeqRef.current += 1;
+      setFocusRequest({ seq: focusSeqRef.current, offset: newContent.length, reason: 'after-condition-action' });
       setAfterConditionMenu(null);
     },
     [afterConditionMenu, content, handleContentChange]
+  );
+
+  const handleValidationPromptSelect = useCallback(
+    (cmd: SlashCommand) => {
+      if (cmd.kind !== 'add_validation_type' || !validationPromptMenu) return;
+      const phrase = VALIDATION_PHRASE[cmd.validationType];
+      const interactionId = `valTypeSelect:slot-1:${cmd.validationType}:${Date.now()}`;
+      debugInteractionRef.current = interactionId;
+      // #region agent log
+      logValidateFlow(
+        'validation prompt select',
+        {
+          interactionId,
+          validationType: cmd.validationType,
+          hasAfterSlotMenu: afterSlotMenu != null,
+          hasValidationPromptMenu: validationPromptMenu != null,
+          hasAnyValidation: segments.some((s) => s.type === 'validation'),
+          insertOffset: validationPromptMenu.insertOffset,
+          contentLen: content.length,
+        },
+        'H1'
+      );
+      // #endregion
+      if (segments.some((s) => s.type === 'validation')) {
+        focusSeqRef.current += 1;
+        setFocusRequest({ seq: focusSeqRef.current, offset: content.length, reason: 'validation-prompt-existing-validation' });
+        setValidationPromptMenu(null);
+        return;
+      }
+      const newContent =
+        content.slice(0, validationPromptMenu.insertOffset) +
+        ' ' +
+        phrase +
+        ' ' +
+        content.slice(validationPromptMenu.insertOffset);
+      // #region agent log
+      logValidateFlow(
+        'validation prompt select mutation',
+        {
+          interactionId,
+          beforeLen: content.length,
+          afterLen: newContent.length,
+          beforeNewlines: (content.match(/\n/g) ?? []).length,
+          afterNewlines: (newContent.match(/\n/g) ?? []).length,
+          insertOffset: validationPromptMenu.insertOffset,
+        },
+        'H1'
+      );
+      // #endregion
+      setCaretResetSeq((v) => v + 1);
+      handleContentChange(newContent);
+      focusSeqRef.current += 1;
+      setFocusRequest({ seq: focusSeqRef.current, offset: newContent.length, reason: 'validation-prompt-select' });
+      setValidationPromptMenu(null);
+    },
+    [afterSlotMenu, content, handleContentChange, segments, validationPromptMenu]
+  );
+
+  const ensureValidateRow = useCallback(
+    (insertOffset: number) => {
+      const hasValidation = segments.some((s) => s.type === 'validation');
+      const hasPrompt = validationPromptMenu != null;
+      const plan = ensureValidateRowState({
+        content,
+        hasValidation,
+        hasPrompt,
+        requestedOffset: insertOffset,
+      });
+      if (plan.ensuredContent !== content) {
+        handleContentChange(plan.ensuredContent);
+      }
+      return {
+        created: plan.shouldOpenPrompt,
+        ensuredInsertOffset: plan.ensuredInsertOffset,
+      };
+    },
+    [content, handleContentChange, segments, validationPromptMenu]
   );
 
   const getInsertTemplate = useCallback(
@@ -228,14 +381,85 @@ export function FreeTextCanvas({
   const handleInsertSelect = useCallback(
     (cmd: SlashCommand) => {
       if (!insertMenu) return;
+      // #region agent log
+      logValidateFlow(
+        'insert menu select',
+        {
+          kind: cmd.kind,
+          hasAfterSlotMenu: afterSlotMenu != null,
+          hasValidationPromptMenu: validationPromptMenu != null,
+          hasAnyValidation: segments.some((s) => s.type === 'validation'),
+          contentLen: content.length,
+        },
+        'H2'
+      );
+      // #endregion
+      if (cmd.kind === 'add_validation') {
+        const interactionId = `validateInsert:${activeSlot.id}:${Date.now()}`;
+        debugInteractionRef.current = interactionId;
+        // #region agent log
+        logValidateFlow(
+          'validate insert interaction',
+          {
+            interactionId,
+            slotId: activeSlot.id,
+            insertOffset: insertMenu.insertOffset,
+            contentLen: content.length,
+            hasAnyValidation: segments.some((s) => s.type === 'validation'),
+          },
+          'H1'
+        );
+        // #endregion
+        const ensureResult = ensureValidateRow(insertMenu.insertOffset);
+        const slotRect = slotRowRef.current?.getBoundingClientRect();
+        const anchor = slotRect
+          ? { top: insertMenu.anchor.top + 24, left: slotRect.left + 115 }
+          : { top: insertMenu.anchor.top + 24, left: insertMenu.anchor.left + 99 };
+        if (ensureResult.created) {
+          setValidationPromptMenu({ anchor, insertOffset: ensureResult.ensuredInsertOffset });
+          focusSeqRef.current += 1;
+          setFocusRequest({ seq: focusSeqRef.current, offset: ensureResult.ensuredInsertOffset, reason: 'slash-validate' });
+        } else {
+          focusSeqRef.current += 1;
+          setFocusRequest({ seq: focusSeqRef.current, offset: content.length, reason: 'slash-validate-existing' });
+        }
+        closeInsertMenu();
+        return;
+      }
       const template = getInsertTemplate(cmd);
       const { insertOffset } = insertMenu;
       const newContent = content.slice(0, insertOffset) + template + content.slice(insertOffset);
+      setCaretResetSeq((v) => v + 1);
       handleContentChange(newContent);
+      focusSeqRef.current += 1;
+      setFocusRequest({ seq: focusSeqRef.current, offset: newContent.length, reason: `insert-${cmd.kind}` });
       closeInsertMenu();
     },
-    [insertMenu, content, getInsertTemplate, handleContentChange, closeInsertMenu]
+    [insertMenu, afterSlotMenu, validationPromptMenu, segments, ensureValidateRow, content, getInsertTemplate, handleContentChange, closeInsertMenu]
   );
+
+  useEffect(() => {
+    if (segments.some((s) => s.type === 'validation')) {
+      setValidationPromptMenu(null);
+    }
+  }, [segments]);
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    // #region agent log
+    logValidateFlow(
+      'focus request set',
+      {
+        seq: focusRequest.seq,
+        reason: focusRequest.reason,
+        offset: focusRequest.offset,
+        hasAnyValidation: segments.some((s) => s.type === 'validation'),
+        contentLen: content.length,
+      },
+      'H4'
+    );
+    // #endregion
+  }, [focusRequest, segments, content.length]);
 
   return (
     <div className={styles.modal}>
@@ -276,68 +500,114 @@ export function FreeTextCanvas({
         <div className={styles.mainContent} ref={editorRef}>
           <section className={styles.descriptionSection}>
             <h3 className={styles.sectionTitle}>Description</h3>
-            <ul className={styles.descriptionList}>
-              <li>You are an orchestration function tool for NRG.</li>
-              <li>On each user turn, you interpret the caller&apos;s request and deterministically decide the next best single action.</li>
-              <li>You must follow the rules below exactly and perform only one action per turn.</li>
-            </ul>
+            <textarea
+              className={styles.descriptionInput}
+              value={document.description ?? ''}
+              onChange={(e) => onDocumentChange({ ...document, description: e.target.value })}
+              placeholder="Enter a description for your Omni Tool…"
+              aria-label="Description"
+              rows={4}
+            />
           </section>
 
-          <div className={styles.slotRow} ref={slotRowRef}>
-            <div className={styles.insertBar} aria-hidden="true" />
-            <button
-              ref={plusButtonRef}
-              type="button"
-              className={styles.plusBtn}
-              style={{ top: plusButtonTop }}
-              onClick={openInsertMenuAtPlus}
-              title="Insert /"
-              aria-label="Insert / (Validate or Conditions)"
-            >
-              <span className={styles.plusIcon}>+</span>
-              <span className={styles.plusTooltip}>Insert /</span>
-            </button>
-            <div className={styles.slotBlock}>
-              <div className={styles.slotBlockHeader}>
-                <span className={styles.slotBlockTitle}>Slot 1</span>
-                {primarySlotName ? (
-                  <input
-                    type="text"
-                    className={styles.slotNameInput}
-                    value={editingSlotName}
-                    onChange={(e) => setEditingSlotName(e.target.value)}
-                    onBlur={() => {
-                      if (
-                        editingSlotName.trim() &&
-                        editingSlotName !== primarySlotName
-                      ) {
-                        handleSlotNameRename(editingSlotName);
-                      } else {
-                        setEditingSlotName(primarySlotName);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    aria-label="Slot name"
-                  />
+          {slotCards.map((card, idx) => {
+            const cardSegments = parseTextToSegmentsForEditor(card.content ?? '');
+            const cardSlotNames = getSlotNamesFromSegments(cardSegments);
+            const cardPrimarySlotName = cardSlotNames[0] ?? '';
+            const isActiveCard = card.id === activeSlot.id;
+            return (
+              <div
+                className={styles.slotRow}
+                ref={isActiveCard ? slotRowRef : null}
+                key={card.id}
+                data-slot-card-id={card.id}
+              >
+                <div className={styles.insertBar} aria-hidden="true" />
+                {isActiveCard && canShowInsertAffordance ? (
+                  <button
+                    ref={plusButtonRef}
+                    type="button"
+                    className={styles.plusBtn}
+                    style={{ top: plusButtonTop }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={openInsertMenuAtPlus}
+                    title="Insert /"
+                    aria-label="Insert / (Validate or Conditions)"
+                  >
+                    <span className={styles.plusIcon}>+</span>
+                    <span className={styles.plusTooltip}>Insert <span className={styles.plusShortcut}>/</span></span>
+                  </button>
                 ) : null}
-                <span className={styles.defineTag}>Define</span>
+                <div className={styles.slotBlock} data-node-id="842:6674" onMouseDown={() => setActiveSlotId(card.id)}>
+                  <div className={styles.slotBlockHeader}>
+                    <div className={styles.slotBlockHeaderLeft}>
+                      <div className={styles.slotHeaderTag}>
+                        <span className={styles.slotBlockTitle}>Slot {idx + 1}</span>
+                      </div>
+                      {cardPrimarySlotName ? (
+                        <>
+                          <span className={styles.slotHeaderName}>{cardPrimarySlotName}</span>
+                          <span className={styles.slotHeaderPencil} aria-hidden title="Edit slot name">✎</span>
+                        </>
+                      ) : null}
+                    </div>
+                    <span className={styles.slotHeaderChevron} aria-hidden>▾</span>
+                  </div>
+                  <div className={styles.freeTextArea}>
+                    <FreeTextEditor
+                      content={card.content ?? ''}
+                      onChange={(newContent) => {
+                        setActiveSlotId(card.id);
+                        handleSlotContentChange(card.id, newContent);
+                      }}
+                      slotNames={slotNames}
+                      slotConfigs={slotConfigs}
+                      onSlotConfigChange={handleSlotConfigChange}
+                      onSlashKey={(anchor, insertOffset) => openInsertMenuAtCaret(anchor, insertOffset, card.id)}
+                      onCaretOffsetChange={(offset, anchor) => {
+                        setActiveSlotId(card.id);
+                        onCaretOffsetChange(offset, anchor);
+                      }}
+                      onCaretPosition={(rect) => {
+                        if (card.id !== activeSlot.id) return;
+                        handleCaretPosition(rect);
+                      }}
+                      validationPromptActive={isActiveCard && validationPromptMenu != null}
+                      focusRequest={isActiveCard ? focusRequest : null}
+                      onFocusRequestConsumed={handleFocusRequestConsumed}
+                      caretResetSeq={caretResetSeq}
+                      debugInteractionId={debugInteractionRef.current}
+                      debugSlotId={card.id}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className={styles.freeTextArea}>
-                <FreeTextEditor
-                  content={content}
-                  onChange={handleContentChange}
-                  slotNames={slotNames}
-                  slotConfigs={slotConfigs}
-                  onSlotConfigChange={handleSlotConfigChange}
-                  onSlashKey={openInsertMenuAtCaret}
-                  onCaretOffsetChange={onCaretOffsetChange}
-                  onCaretPosition={handleCaretPosition}
-                />
-              </div>
-            </div>
-          </div>
+            );
+          })}
+
+          <button
+            type="button"
+            className={styles.addSlotButton}
+            onClick={() => {
+              const nextCards = appendSlotCard(slotCards);
+              const nextId = nextCards[nextCards.length - 1]?.id ?? `slot-${slotCards.length + 1}`;
+              onDocumentChange({
+                ...document,
+                slotCards: nextCards,
+              });
+              setActiveSlotId(nextId);
+            }}
+            data-node-id="842:8241"
+            aria-label="Add a slot"
+          >
+            <span className={styles.addSlotLabel}>
+              <span className={styles.addSlotIcon} aria-hidden>+</span>
+              Add a slot
+            </span>
+            <span className={styles.addSlotHint}>
+              Add a slot to represent information that will be collected, validated, and reused throughout the flow.
+            </span>
+          </button>
           {insertMenu && (
             <SlashCommandMenu
               slotNames={slotNames}
@@ -347,16 +617,27 @@ export function FreeTextCanvas({
               insertOnly
             />
           )}
-          {afterSlotMenu && !insertMenu && (
+          {afterSlotMenu && !insertMenu && !validationPromptMenu && (
             <SlashCommandMenu
               slotNames={slotNames}
               anchorRect={afterSlotMenu.anchor}
               onSelect={handleAfterSlotSelect}
               onClose={() => setAfterSlotMenu(null)}
               showOnlyValidationIntents
+              slotType={slotConfigs[afterSlotMenu.slotName]?.slotType}
             />
           )}
-          {afterConditionMenu && !insertMenu && (
+          {validationPromptMenu && !insertMenu && (
+            <SlashCommandMenu
+              slotNames={slotNames}
+              anchorRect={validationPromptMenu.anchor}
+              onSelect={handleValidationPromptSelect}
+              onClose={() => setValidationPromptMenu(null)}
+              showOnlyValidationIntents
+              simpleValidationList
+            />
+          )}
+          {afterConditionMenu && !insertMenu && !validationPromptMenu && (
             <SlashCommandMenu
               slotNames={slotNames}
               anchorRect={afterConditionMenu.anchor}

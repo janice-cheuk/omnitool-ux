@@ -6,22 +6,17 @@ import { FreeTextCanvas } from './components/editor/FreeTextCanvas';
 import { ReviewBar } from './components/ReviewBar';
 import styles from './App.module.css';
 
-// #region agent log
 class DebugErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() {
     return { hasError: true };
   }
-  componentDidCatch(error: Error, info: { componentStack: string }) {
-    const payload = { sessionId: '24a1d3', location: 'App.tsx:ErrorBoundary', message: 'React render error', data: { errorMessage: error.message, stack: error.stack, componentStack: info?.componentStack }, timestamp: Date.now(), hypothesisId: 'H1' };
-    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' }, body: JSON.stringify(payload) }).catch(() => {});
-  }
+  componentDidCatch(_error: Error, _info: { componentStack: string }) {}
   render() {
-    if (this.state.hasError) return <div style={{ padding: 16, color: '#c00' }}>Something went wrong. Check debug logs.</div>;
+    if (this.state.hasError) return <div style={{ padding: 16, color: '#c00' }}>Something went wrong.</div>;
     return this.props.children;
   }
 }
-// #endregion
 
 function genBlockId(): string {
   return `b-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -33,6 +28,7 @@ const initialDocument: Document = {
   description: 'Define slots, validations, and conditions for your Omni Tool.',
   blocks: [],
   freeTextContent: '',
+  slotCards: [{ id: 'slot-1', content: '' }],
 };
 
 export default function App() {
@@ -64,12 +60,34 @@ export default function App() {
       setDocument((prev) => ({
         ...prev,
         freeTextContent: (prev.freeTextContent ?? '') + (prev.freeTextContent ? '\n\n' : '') + newSlots,
+        slotCards:
+          prev.slotCards && prev.slotCards.length > 0
+            ? prev.slotCards.map((card, idx) =>
+                idx === 0
+                  ? {
+                      ...card,
+                      content: (card.content ?? '') + (card.content ? '\n\n' : '') + newSlots,
+                    }
+                  : card
+              )
+            : [{ id: 'slot-1', content: newSlots }],
       }));
     } else if (pendingDiff.suggestedSlots?.length) {
       const newSlots = pendingDiff.suggestedSlots.map((s) => `slot ${s.name}`).join('\n');
       setDocument((prev) => ({
         ...prev,
         freeTextContent: (prev.freeTextContent ?? '') + (prev.freeTextContent ? '\n\n' : '') + newSlots,
+        slotCards:
+          prev.slotCards && prev.slotCards.length > 0
+            ? prev.slotCards.map((card, idx) =>
+                idx === 0
+                  ? {
+                      ...card,
+                      content: (card.content ?? '') + (card.content ? '\n\n' : '') + newSlots,
+                    }
+                  : card
+              )
+            : [{ id: 'slot-1', content: newSlots }],
       }));
     }
     setPendingDiff(null);

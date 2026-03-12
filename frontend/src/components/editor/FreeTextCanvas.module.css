@@ -1,0 +1,489 @@
+.modal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toolType {
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text-muted);
+}
+
+.toolName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actionBtn,
+.actionBtnActive {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  cursor: pointer;
+}
+
+.actionBtn:hover,
+.actionBtnActive:hover {
+  background: var(--user-bubble);
+}
+
+.actionBtnActive {
+  background: var(--user-bubble);
+  border-color: var(--border);
+}
+
+.modalBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.slotPanel {
+  width: var(--slots-panel-w);
+  flex-shrink: 0;
+  padding: 24px 0 10px 24px;
+  overflow-y: auto;
+  border-right: 1px solid transparent;
+}
+
+.slotPanelCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slotPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.slotPanelIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--positive-hover);
+  border-radius: 50%;
+  padding: 3px;
+  font-size: 12px;
+}
+
+.slotPanelTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.infoBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.infoBtn:hover {
+  color: var(--text);
+}
+
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 36px 24px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.descriptionSection {
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.descriptionList {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.descriptionList li {
+  margin-bottom: 4px;
+}
+
+.descriptionContent {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+}
+
+.descriptionContent p {
+  margin: 0 0 6px 0;
+}
+
+.descriptionContent p:last-child {
+  margin-bottom: 0;
+}
+
+.descriptionEmpty {
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+.descriptionInput {
+  width: 100%;
+  min-height: 80px;
+  padding: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  resize: none;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.descriptionInput::placeholder {
+  color: var(--text-placeholder);
+}
+
+/* Add a slot button - Figma 842-8241 */
+.addSlotButton {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.addSlotButton:hover {
+  background: var(--user-bubble, #f1f5fe);
+  border-color: var(--accent);
+}
+
+.addSlotLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.addSlotIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 300;
+  color: var(--text);
+}
+
+.addSlotHint {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Row: insert plus on the left (follows caret latitude), slot block on the right */
+.slotRow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.insertBar {
+  flex-shrink: 0;
+  width: 28px;
+  min-height: 1px;
+}
+
+.slotRow .plusBtn {
+  position: absolute;
+  left: -16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #e5e9fe;
+  color: #5f51f5;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.slotRow .plusBtn:hover,
+.slotRow .plusBtn:focus {
+  background: #e5e9fe;
+  color: #5f51f5;
+}
+
+.slotRow .plusIcon {
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 300;
+}
+
+.slotRow .plusTooltip {
+  position: absolute;
+  left: -10px;
+  top: calc(100% + 8px);
+  transform: none;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 425;
+  line-height: 1.55;
+  color: #fff;
+  background: #25252a;
+  border: none;
+  border-radius: 2px;
+  padding: 5px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-shadow:
+    0 5px 6px rgba(0, 0, 0, 0.04),
+    0 8px 13px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 50;
+}
+
+.slotRow .plusTooltip::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: -4px;
+  transform: rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #25252a;
+}
+
+.slotRow .plusBtn:hover .plusTooltip,
+.slotRow .plusBtn:focus .plusTooltip {
+  opacity: 1;
+}
+
+.slotRow .plusShortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  font-size: 7px;
+  line-height: 1.55;
+  color: #5d666f;
+  background: #c1cace;
+  border: 0.5px solid #3d3d47;
+}
+
+/* Slot block container - Figma 842-6526; focus ring on whole block when editor focused */
+.slotBlock {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.slotBlock:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.slotBlockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 35px;
+  padding: 8px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
+}
+
+.slotBlockHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slotHeaderTag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  gap: 4px;
+  background: var(--user-bubble, #f1f5fe);
+  border: 0.5px solid var(--border);
+  border-radius: 9999px;
+}
+
+.slotBlockTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.slotHeaderName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.slotHeaderPencil {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.slotHeaderPencil:hover {
+  color: var(--text);
+}
+
+.slotHeaderChevron {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1;
+  user-select: none;
+}
+
+.slotNameInput {
+  min-width: 60px;
+  max-width: 180px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.slotNameInput:focus {
+  outline: none;
+}
+
+.defineTag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+  background: var(--positive-hover);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Content area - editor fills this; padding lives on editor so placeholder position unchanged */
+.freeTextArea {
+  flex: 1;
+  min-height: 175px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.assistantPanel {
+  width: var(--right-panel-w);
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
