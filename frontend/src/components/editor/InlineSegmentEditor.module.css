@@ -1,0 +1,148 @@
+/* Wrapper: CSS-only placeholder when empty so selection/caret never enters placeholder text */
+.editorWrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 200px;
+}
+
+.editorWrapper[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 20px;
+  top: 16px;
+  right: 20px;
+  color: var(--text-placeholder);
+  pointer-events: none;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+}
+
+/* Inline placeholder on line 2: rendered from cursor anchor pseudo-element */
+.cursorAnchor {
+  display: inline;
+}
+.cursorAnchor[data-line2-placeholder]::after {
+  content: attr(data-line2-placeholder);
+  color: var(--text-placeholder);
+  font-size: inherit;
+  line-height: inherit;
+  font-family: var(--font-sans);
+  vertical-align: baseline;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Editor fills the slot block container - no inner border (Figma 842-6526) */
+.editor {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  padding: 16px 20px 20px;
+  font-size: 14px;
+  line-height: 1.75;
+  background: var(--card-bg);
+  border: none;
+  border-radius: 0;
+  outline: none;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Toggled when editor has no content (Notion-style: placeholder visible, caret at 0) */
+.editorEmpty {
+  /* Placeholder is on wrapper ::before; no content nodes */
+}
+
+/* Inline placeholder: non-interactive — default cursor, not selectable, click focuses editor at end */
+.inlinePlaceholder {
+  color: var(--text-placeholder);
+  font-size: 14px;
+  line-height: 1.6;
+  pointer-events: auto;
+  user-select: none;
+  white-space: pre-wrap;
+  cursor: default;
+}
+
+.chipSlotDef {
+  display: inline;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+.chipValidation {
+  display: inline;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--accent);
+  background: rgba(74, 158, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+.chipCondition {
+  display: inline;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--success);
+  background: rgba(52, 199, 89, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+/* Line labels: Define (green) on first line next to slot chip; Validation (purple) on validation line */
+.lineLabelDefine {
+  display: inline;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0d6b0d;
+  background: rgba(52, 199, 89, 0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.lineLabelValidation {
+  display: inline;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b21b6;
+  background: rgba(139, 92, 246, 0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Value ref (white chip) — only after contains / does not contain / is from a defined list */
+.valueChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  margin: 0 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6c757d;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+}
