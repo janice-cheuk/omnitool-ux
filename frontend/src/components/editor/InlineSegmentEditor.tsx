@@ -82,6 +82,25 @@ function getCaretOffset(container: HTMLElement, selection: Selection): number {
   return serializeDom(temp).length;
 }
 
+/** Returns { start, end } in serialized content; end - start = selection length. */
+function getSelectionRange(container: HTMLElement, selection: Selection): { start: number; end: number } {
+  const range = selection.getRangeAt(0);
+  const startRange = document.createRange();
+  startRange.selectNodeContents(container);
+  startRange.setEnd(range.startContainer, range.startOffset);
+  const startTemp = document.createElement('div');
+  startTemp.appendChild(startRange.cloneContents());
+  const start = serializeDom(startTemp).length;
+
+  const endRange = document.createRange();
+  endRange.selectNodeContents(container);
+  endRange.setEnd(range.endContainer, range.endOffset);
+  const endTemp = document.createElement('div');
+  endTemp.appendChild(endRange.cloneContents());
+  const end = serializeDom(endTemp).length;
+  return { start, end };
+}
+
 function getCaretCoordinates(container: HTMLElement, selection: Selection): { top: number; left: number } {
   if (!selection || selection.rangeCount === 0) {
     const rect = container.getBoundingClientRect();
@@ -137,26 +156,16 @@ function setCaretAtOffset(container: HTMLElement, offset: number): void {
       const el = node as HTMLElement;
       if (el.getAttribute('data-placeholder-inline') || el.getAttribute('data-line-label')) return false;
       if (el.getAttribute('data-cursor-anchor')) {
-        const anchorText = (el.textContent || '').replace(/\u200B/g, '');
-        const anchorLen = anchorText.length;
-        if (current + anchorLen >= offset) {
-          if (anchorLen === 0) {
-            range.setStart(el, 0);
-            range.collapse(true);
-            return true;
-          }
-          const textNode = el.firstChild;
-          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-            const pos = Math.min(offset - current, anchorLen);
-            range.setStart(textNode, pos);
-            range.collapse(true);
-            return true;
-          }
-          range.setStart(el, 0);
+        // Cursor anchor is 0-length in serialized model. When the walk reaches it
+        // the real caret should land just BEFORE this span (in the parent container),
+        // not inside the contentEditable=false element, so the browser renders the
+        // native cursor in editable space rather than after the placeholder text.
+        if (current === offset && el.parentElement) {
+          const idx = Array.from(el.parentElement.children).indexOf(el);
+          range.setStart(el.parentElement, idx);
           range.collapse(true);
           return true;
         }
-        current += anchorLen;
         return false;
       }
       const valType = el.getAttribute('data-validation-type');
@@ -175,21 +184,6 @@ function setCaretAtOffset(container: HTMLElement, offset: number): void {
     if (node.nodeType === Node.TEXT_NODE) {
       const len = (node.textContent || '').length;
       if (current + len >= offset) {
-        if (offset === current + len) {
-          const span = node.parentElement;
-          if (span?.parentElement === container) {
-            const idx = Array.from(container.children).indexOf(span);
-            for (let j = idx + 1; j < container.children.length; j++) {
-              const sib = container.children[j] as HTMLElement;
-              if (sib.getAttribute('data-cursor-anchor')) {
-                current += len;
-                return false;
-              }
-              if (sib.getAttribute('data-placeholder-inline') || sib.getAttribute('data-line-label')) continue;
-              break;
-            }
-          }
-        }
         range.setStart(node, Math.min(offset - current, len));
         range.collapse(true);
         return true;
@@ -268,8 +262,6 @@ interface InlineSegmentEditorProps {
   focusRequest?: { seq: number; offset: number; reason: string } | null;
   /** Increment to invalidate stale local caret refs after external inserts. */
   caretResetSeq?: number;
-  debugInteractionId?: string | null;
-  debugSlotId?: string;
 }
 
 /**
@@ -291,33 +283,23 @@ export function InlineSegmentEditor({
   validationPromptActive = false,
   focusRequest = null,
   caretResetSeq = 0,
-  debugInteractionId = null,
-  debugSlotId = 'slot-1',
 }: InlineSegmentEditorProps) {
-  // #region agent log
-  const logInlineRender = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
-    if (typeof fetch === 'undefined') return;
-    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' },
-      body: JSON.stringify({
-        sessionId: '24a1d3',
-        runId: 'dup-validate-focus-debug',
-        hypothesisId,
-        location: 'InlineSegmentEditor.tsx',
-        message,
-        data,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  };
-  // #endregion
-
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const lastAppliedFocusSeqRef = useRef<number>(0);
   const isComposingRef = useRef(false);
   const caretOffsetRef = useRef<number | null>(null);
   const justAppliedRef = useRef(false);
+  // Prevents selectionchange from triggering a re-render while setCaretAtOffset
+  // is placing the caret programmatically. Without this, the rAF callback from
+  // selectionchange can call setCaretOffsetState with a stale offset and cause
+  // the caret to jump on the next render.
+  const isRestoringCaretRef = useRef(false);
+
+  const [isFocused, setIsFocused] = useState(false);
+  // Last known caret position relative to the editorWrapper — used to draw a
+  // ghost cursor when the editor loses focus so the typing position stays visible.
+  const [ghostCaretRect, setGhostCaretRect] = useState<{ left: number; top: number; height: number } | null>(null);
 
   const segments = parseTextToSegmentsForEditor(content);
   const afterContainsPlaceholder = getPlaceholderAfterSegment(segments);
@@ -467,20 +449,6 @@ export function InlineSegmentEditor({
       }
       items.push({ type: 'validation_line_placeholder', lineIndex: 1 });
     }
-    // #region agent log
-    logInlineRender(
-      'renderItems built',
-      {
-        contentLen: content.length,
-        segmentValidations: segments.filter((s) => s.type === 'validation').length,
-        validationLabelCount: items.filter((i) => i.type === 'label' && i.kind === 'validation').length,
-        linePlaceholderCount: items.filter((i) => i.type === 'validation_line_placeholder').length,
-        validationPromptActive,
-        shouldShowContainsValuePlaceholder,
-      },
-      'H3'
-    );
-    // #endregion
     return items;
   }, [afterContainsPlaceholder, content, segments, validationPromptActive]);
 
@@ -537,19 +505,6 @@ export function InlineSegmentEditor({
     const slotRefs = segments.filter((s): s is InlineSegment & { type: 'slot_ref' } => s.type === 'slot_ref');
     const hasValidation = segments.some((s) => s.type === 'validation');
     if (slotRefs.length === 0 || hasValidation || content.includes('\n')) return;
-    // #region agent log
-    logInlineRender(
-      'line2 ensure newline fired',
-      {
-        interactionId: debugInteractionId,
-        slotRefCount: slotRefs.length,
-        hasValidation,
-        contentLen: content.length,
-        newlineCount: (content.match(/\n/g) ?? []).length,
-      },
-      'H3'
-    );
-    // #endregion
     const newContent = content + '\n';
     const newCaret = newContent.length;
     caretOffsetRef.current = newCaret;
@@ -584,28 +539,13 @@ export function InlineSegmentEditor({
   );
 
   const applyChange = useCallback(
-    (newContent: string, newCaretOffset: number, source: string = 'unknown') => {
-      // #region agent log
-      logInlineRender(
-        'applyChange',
-        {
-          source,
-          interactionId: debugInteractionId,
-          slotId: debugSlotId,
-          newCaretOffset,
-          newContentLen: newContent.length,
-          newContentNewlines: (newContent.match(/\n/g) ?? []).length,
-          hasValidationAfter: parseTextToSegmentsForEditor(newContent).some((s) => s.type === 'validation'),
-        },
-        'H6'
-      );
-      // #endregion
+    (newContent: string, newCaretOffset: number, _source: string = 'unknown') => {
       caretOffsetRef.current = newCaretOffset;
       setCaretOffsetState(newCaretOffset);
       justAppliedRef.current = true;
       onChange(newContent);
     },
-    [debugInteractionId, debugSlotId, onChange]
+    [onChange]
   );
 
   const handleKeyDown = useCallback(
@@ -623,58 +563,33 @@ export function InlineSegmentEditor({
         onSlashKey(anchor, insertOffset);
         return;
       }
-
-      const isPrintable = key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
-      const isBackspace = key === 'Backspace';
-      const isDelete = key === 'Delete';
-
-      if (!isPrintable && !isBackspace && !isDelete) return;
-      if (!sel || sel.rangeCount === 0) return;
-
-      e.preventDefault();
-      const currentContent = serializeDom(el);
-      const offset = getCaretOffset(el, sel);
-
-      let newContent: string;
-      let newOffset: number;
-
-      if (isPrintable) {
-        newContent = currentContent.slice(0, offset) + key + currentContent.slice(offset);
-        newOffset = offset + 1;
-      } else if (isBackspace) {
-        if (offset <= 0) return;
-        newContent = currentContent.slice(0, offset - 1) + currentContent.slice(offset);
-        newOffset = offset - 1;
-      } else {
-        if (offset >= currentContent.length) return;
-        newContent = currentContent.slice(0, offset) + currentContent.slice(offset + 1);
-        newOffset = offset;
-      }
-
-      applyChange(newContent, newOffset);
     },
-    [applyChange, onSlashKey]
+    [onSlashKey]
   );
 
-  const handleBeforeInput = useCallback(
-    (e: React.FormEvent<HTMLDivElement>) => {
-      const native = e.nativeEvent as InputEvent;
-      const inputType = native.inputType;
+  // Mutable ref so the native beforeinput listener always calls the latest version
+  // of the handler without needing to re-attach the DOM listener on every render.
+  const handleBeforeInputRef = useRef<(e: InputEvent) => void>(() => {});
 
-      if (justAppliedRef.current) {
-        justAppliedRef.current = false;
-        e.preventDefault();
-        return;
-      }
+  const handleBeforeInput = useCallback(
+    (e: InputEvent) => {
+      const inputType = e.inputType;
+
+      // NOTE: No justAppliedRef guard here. That guard caused every-other-character
+      // drops: applyChange sets justAppliedRef=true, but because we call
+      // e.preventDefault() the browser never fires 'input', so handleInput never
+      // clears the flag, and the very next beforeinput would hit the guard and get
+      // silently discarded. The flag is only meaningful in handleInput (fallback).
 
       const isHandled =
         inputType === 'insertText' ||
         inputType === 'insertLineBreak' ||
+        inputType === 'insertFromPaste' ||
         inputType === 'deleteContentBackward' ||
         inputType === 'deleteContentForward';
 
       if (!isHandled) return;
-      if (inputType === 'insertText' && native.data === '/' && onSlashKey) {
+      if (inputType === 'insertText' && e.data === '/' && onSlashKey) {
         e.preventDefault();
         return;
       }
@@ -689,67 +604,37 @@ export function InlineSegmentEditor({
 
       const currentContent = serializeDom(el);
       const sel = window.getSelection();
-      const offset = sel && sel.rangeCount > 0 ? getCaretOffset(el, sel) : currentContent.length;
-      // #region agent log
-      logInlineRender(
-        'beforeinput start',
-        {
-          interactionId: debugInteractionId,
-          slotId: debugSlotId,
-          inputType,
-          char: native.data ?? null,
-          offset,
-          currentContentLen: currentContent.length,
-          currentContentNewlines: (currentContent.match(/\n/g) ?? []).length,
-          hasValidationNow: segments.some((s) => s.type === 'validation'),
-        },
-        'H7'
-      );
-      // #endregion
+      const { start, end } =
+        sel && sel.rangeCount > 0
+          ? getSelectionRange(el, sel)
+          : { start: currentContent.length, end: currentContent.length };
+      const selectionLen = end - start;
 
       let newContent: string;
       let newOffset: number;
 
-      if (inputType === 'insertText') {
-        const data = native.data ?? '';
-        const validationSeg = segments.find((s): s is InlineSegment & { type: 'validation' } => s.type === 'validation');
-        if (validationSeg && data.length > 0) {
-          // #region agent log
-          logInlineRender(
-            'validate value typing input',
-            {
-              interactionId: `validateValueType:${debugSlotId}:${validationSeg.id}:${Date.now()}`,
-              slotId: debugSlotId,
-              validationId: validationSeg.id,
-              inputType,
-              char: data,
-              contentLen: currentContent.length,
-              newlineCount: (currentContent.match(/\n/g) ?? []).length,
-            },
-            'H5'
-          );
-          // #endregion
-        }
-        const textBeforeCaret = currentContent.slice(0, offset);
-        const atBoundary = offset === 0 || /[\s\n]/.test(currentContent[offset - 1] ?? '');
-        if (data === ' ' && atBoundary) {
+      if (inputType === 'insertText' || inputType === 'insertFromPaste') {
+        const data = e.data ?? '';
+        const textBeforeCaret = currentContent.slice(0, start);
+        const atBoundary = start === 0 || /[\s\n]/.test(currentContent[start - 1] ?? '');
+        if (inputType === 'insertText' && data === ' ' && atBoundary && selectionLen === 0) {
           if (/^\s*define$/.test(textBeforeCaret.trimStart())) {
             const leading = textBeforeCaret.match(/^\s*/)?.[0] ?? '';
-            newContent = leading + '@ ' + currentContent.slice(offset);
+            newContent = leading + '@ ' + currentContent.slice(end);
             newOffset = leading.length + 2;
             applyChange(newContent, newOffset, 'beforeinput:keyword-define');
             return;
           }
           if (/^\s*if$/.test(textBeforeCaret.trimStart())) {
             const leading = textBeforeCaret.match(/^\s*/)?.[0] ?? '';
-            newContent = leading + 'if @ ' + currentContent.slice(offset);
+            newContent = leading + 'if @ ' + currentContent.slice(end);
             newOffset = leading.length + 5;
             applyChange(newContent, newOffset, 'beforeinput:keyword-if');
             return;
           }
           if (/^\s*validate$/.test(textBeforeCaret.trimStart())) {
             const leading = textBeforeCaret.match(/^\s*/)?.[0] ?? '';
-            newContent = leading + ' ' + currentContent.slice(offset);
+            newContent = leading + ' ' + currentContent.slice(end);
             newOffset = leading.length + 1;
             applyChange(newContent, newOffset, 'beforeinput:keyword-validate');
             if (onSlashKey) {
@@ -764,37 +649,52 @@ export function InlineSegmentEditor({
             return;
           }
         }
-        newContent = currentContent.slice(0, offset) + data + currentContent.slice(offset);
-        newOffset = offset + data.length;
+        newContent = currentContent.slice(0, start) + data + currentContent.slice(end);
+        newOffset = start + data.length;
       } else if (inputType === 'insertLineBreak') {
-        newContent = currentContent.slice(0, offset) + '\n' + currentContent.slice(offset);
-        newOffset = offset + 1;
+        newContent = currentContent.slice(0, start) + '\n' + currentContent.slice(end);
+        newOffset = start + 1;
         applyChange(newContent, newOffset, 'beforeinput:linebreak');
         if (onSlashKey) {
           setTimeout(() => {
-            const el = containerRef.current;
-            const sel = window.getSelection();
-            if (el && sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
-              const anchor = getCaretCoordinates(el, sel);
-              onSlashKey(anchor, newOffset);
+            const el2 = containerRef.current;
+            const sel2 = window.getSelection();
+            if (el2 && sel2?.rangeCount && el2.contains(sel2.anchorNode)) {
+              onSlashKey(getCaretCoordinates(el2, sel2), newOffset);
             }
           }, 0);
         }
         return;
       } else if (inputType === 'deleteContentBackward') {
-        if (offset <= 0) return;
-        newContent = currentContent.slice(0, offset - 1) + currentContent.slice(offset);
-        newOffset = offset - 1;
+        if (start <= 0 && selectionLen === 0) return;
+        const deleteLen = selectionLen > 0 ? selectionLen : 1;
+        newContent = currentContent.slice(0, start - (selectionLen > 0 ? 0 : 1)) + currentContent.slice(end);
+        newOffset = start - deleteLen;
       } else {
-        if (offset >= currentContent.length) return;
-        newContent = currentContent.slice(0, offset) + currentContent.slice(offset + 1);
-        newOffset = offset;
+        if (end >= currentContent.length && selectionLen === 0) return;
+        newContent = currentContent.slice(0, start) + currentContent.slice(end + (selectionLen > 0 ? 0 : 1));
+        newOffset = start;
       }
 
       applyChange(newContent, newOffset, `beforeinput:${inputType}`);
     },
-    [applyChange, debugSlotId, onSlashKey, segments]
+    [applyChange, onSlashKey]
   );
+
+  // Keep the ref pointing at the latest callback so the DOM listener never goes stale.
+  handleBeforeInputRef.current = handleBeforeInput;
+
+  // Attach the beforeinput listener directly to the DOM element rather than relying
+  // on React's root-level delegation. This fires before React's delegated handler,
+  // so e.preventDefault() is guaranteed to cancel the browser's native edit.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: InputEvent) => handleBeforeInputRef.current(e);
+    el.addEventListener('beforeinput', handler);
+    return () => el.removeEventListener('beforeinput', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const reportCaretRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -804,6 +704,28 @@ export function InlineSegmentEditor({
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
       if (!el.contains(sel.anchorNode)) return;
+
+      // Always update the ghost caret position so it stays accurate for when
+      // the editor loses focus, regardless of whether we're restoring.
+      const wrapper = wrapperRef.current;
+      if (wrapper) {
+        const range = sel.getRangeAt(0);
+        const rects = range.getClientRects();
+        const rect = rects.length > 0 ? rects[0] : range.getBoundingClientRect();
+        const wRect = wrapper.getBoundingClientRect();
+        if (rect && rect.height > 0) {
+          setGhostCaretRect({
+            left: rect.left - wRect.left,
+            top: rect.top - wRect.top,
+            height: rect.height,
+          });
+        }
+      }
+
+      // Skip the expensive re-render triggered by setCaretOffsetState when
+      // the selectionchange was caused by our own programmatic caret placement.
+      if (isRestoringCaretRef.current) return;
+
       if (onCaretPosition) {
         const range = sel.getRangeAt(0);
         onCaretPosition(range.getBoundingClientRect());
@@ -823,6 +745,7 @@ export function InlineSegmentEditor({
   }, [onCaretPosition, onCaretOffsetChange]);
 
   const handleFocus = useCallback(() => {
+    setIsFocused(true);
     const el = containerRef.current;
     if (el) {
       const len = serializeDom(el).length;
@@ -839,6 +762,10 @@ export function InlineSegmentEditor({
     if (onCaretPosition) requestAnimationFrame(() => reportCaretRef.current());
   }, [content.length, onCaretPosition]);
 
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+  }, []);
+
   const handleInput = useCallback(() => {
     if (isComposingRef.current) return;
     if (justAppliedRef.current) {
@@ -849,21 +776,6 @@ export function InlineSegmentEditor({
     if (!el) return;
     const raw = serializeDom(el);
     if (raw === content) return;
-    // #region agent log
-    logInlineRender(
-      'onInput fallback change',
-      {
-        interactionId: debugInteractionId,
-        slotId: debugSlotId,
-        rawLen: raw.length,
-        rawNewlines: (raw.match(/\n/g) ?? []).length,
-        prevContentLen: content.length,
-        prevContentNewlines: (content.match(/\n/g) ?? []).length,
-        hasValidationRaw: parseTextToSegmentsForEditor(raw).some((s) => s.type === 'validation'),
-      },
-      'H8'
-    );
-    // #endregion
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       caretOffsetRef.current = getCaretOffset(el, sel);
@@ -880,9 +792,11 @@ export function InlineSegmentEditor({
       if (!sel || sel.rangeCount === 0) return;
       const text = e.clipboardData.getData('text/plain');
       const currentContent = serializeDom(el);
-      const offset = getCaretOffset(el, sel);
-      const newContent = currentContent.slice(0, offset) + text + currentContent.slice(offset);
-      caretOffsetRef.current = offset + text.length;
+      const { start, end } = getSelectionRange(el, sel);
+      const newContent = currentContent.slice(0, start) + text + currentContent.slice(end);
+      const newOffset = start + text.length;
+      caretOffsetRef.current = newOffset;
+      setCaretOffsetState(newOffset);
       justAppliedRef.current = true;
       onChange(newContent);
     },
@@ -895,8 +809,18 @@ export function InlineSegmentEditor({
 
   const handleCompositionEnd = useCallback(() => {
     isComposingRef.current = false;
-    handleInput();
-  }, [handleInput]);
+    const el = containerRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    const raw = serializeDom(el);
+    if (raw !== content) {
+      const newOffset = sel && sel.rangeCount > 0 ? getCaretOffset(el, sel) : raw.length;
+      caretOffsetRef.current = newOffset;
+      setCaretOffsetState(newOffset);
+      justAppliedRef.current = true;
+      onChange(raw);
+    }
+  }, [content, onChange]);
 
   const hasValidationLinePlaceholder = renderItems.some((r) => r.type === 'validation_line_placeholder');
   const containsValidationSelected = segments.some(
@@ -922,6 +846,7 @@ export function InlineSegmentEditor({
     caretOffsetRef.current = targetOffset;
     setCaretOffsetState(targetOffset);
     el.focus();
+    isRestoringCaretRef.current = true;
     setCaretAtOffset(el, targetOffset);
     const selection = window.getSelection();
     const anchorNode = selection?.anchorNode;
@@ -935,25 +860,7 @@ export function InlineSegmentEditor({
       caretOffsetRef.current = endOffset;
       setCaretOffsetState(endOffset);
     }
-    const anchorRect = anchorElement?.getBoundingClientRect();
-    // #region agent log
-    logInlineRender(
-      'focus request applied',
-      {
-        interactionId: debugInteractionId,
-        seq: focusRequest.seq,
-        reason: focusRequest.reason,
-        requestedOffset: focusRequest.offset,
-        targetOffset,
-        serializedLen: len,
-        anchorTag: anchorElement?.tagName ?? null,
-        anchorDataLineLabel: anchorElement?.getAttribute('data-line-label') ?? null,
-        anchorDataCursorAnchor: anchorElement?.getAttribute('data-cursor-anchor') ?? null,
-        anchorHeight: anchorRect?.height ?? null,
-      },
-      'H4'
-    );
-    // #endregion
+    requestAnimationFrame(() => { isRestoringCaretRef.current = false; });
   }, [focusRequest]);
 
   useLayoutEffect(() => {
@@ -961,19 +868,21 @@ export function InlineSegmentEditor({
     const fromRef = caretOffsetRef.current;
     const defaultOnLine2 = content.endsWith('\n') && hasValidationLinePlaceholder ? content.length : undefined;
     const desiredOffset = fromRef ?? defaultOnLine2;
-    const isFocused = el ? document.activeElement === el : false;
     const willApply = el && desiredOffset != null && (fromRef != null || defaultOnLine2 != null);
     if (willApply) {
       const len = serializeDom(el).length;
       const targetOffset = Math.min(desiredOffset, len);
       if (fromRef != null) caretOffsetRef.current = null;
-      if (!isFocused && (fromRef != null || defaultOnLine2 != null)) el.focus();
+      if (document.activeElement !== el && (fromRef != null || defaultOnLine2 != null)) el.focus();
+      isRestoringCaretRef.current = true;
       setCaretAtOffset(el, targetOffset);
+      requestAnimationFrame(() => { isRestoringCaretRef.current = false; });
     }
   }, [content, hasValidationLinePlaceholder, renderItems]);
 
   return (
     <div
+      ref={wrapperRef}
       className={styles.editorWrapper}
       data-empty={isEmpty ? 'true' : 'false'}
       data-placeholder={placeholderText}
@@ -982,6 +891,14 @@ export function InlineSegmentEditor({
       onClick={handleWrapperClick}
       role="presentation"
     >
+      {/* Ghost cursor: shows the last caret position when the editor is unfocused */}
+      {ghostCaretRect && !isFocused && (
+        <div
+          className={styles.ghostCaret}
+          style={{ left: ghostCaretRect.left, top: ghostCaretRect.top, height: ghostCaretRect.height }}
+          aria-hidden="true"
+        />
+      )}
       <div
         ref={containerRef}
         className={`${styles.editor} ${styles.ceEditor} ${isEmpty ? styles.editorEmpty : ''}`}
@@ -989,19 +906,16 @@ export function InlineSegmentEditor({
         data-placeholder={placeholderText}
         suppressContentEditableWarning
         onKeyDown={handleKeyDown}
-        onBeforeInput={handleBeforeInput}
         onInput={handleInput}
         onPaste={handlePaste}
         onFocus={handleFocus}
+        onBlur={handleBlur}
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
         data-role="slot-editor"
         aria-label="Slot definition editor"
       >
-        {isEmpty ? (
-          <br />
-        ) : (
-          displayItems.map((item) => {
+        {displayItems.map((item) => {
             if (item.type === 'label') {
               return (
                 <span
@@ -1031,7 +945,15 @@ export function InlineSegmentEditor({
             if (item.type !== 'segment') return null;
             const seg = item.segment;
           if (seg.type === 'text') {
-            return <span key={seg.id}>{seg.value}</span>;
+            // Pure-whitespace spans on the validation line (lineIndex > 0) are
+            // structural spacers between chips/labels — make them non-editable so
+            // the only editable region on that line is after the last chip.
+            const isStructuralSpacer = item.lineIndex > 0 && /^[\s\n]+$/.test(seg.value);
+            return (
+              <span key={seg.id} contentEditable={isStructuralSpacer ? false : undefined}>
+                {seg.value}
+              </span>
+            );
           }
           if (seg.type === 'slot_ref') {
             const saved = slotConfigs[seg.slotName];
@@ -1071,8 +993,7 @@ export function InlineSegmentEditor({
             );
           }
           return null;
-          })
-        )}
+          })}
       </div>
     </div>
   );

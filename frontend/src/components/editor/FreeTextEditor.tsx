@@ -20,8 +20,6 @@ interface FreeTextEditorProps {
   validationPromptActive?: boolean;
   focusRequest?: { seq: number; offset: number; reason: string } | null;
   caretResetSeq?: number;
-  debugInteractionId?: string | null;
-  debugSlotId?: string;
 }
 
 /**
@@ -42,8 +40,6 @@ export function FreeTextEditor({
   validationPromptActive = false,
   focusRequest = null,
   caretResetSeq = 0,
-  debugInteractionId = null,
-  debugSlotId = 'slot-1',
 }: FreeTextEditorProps) {
   const segments = parseTextToSegmentsForEditor(content);
   const slotRefs = segments.filter((s) => s.type === 'slot_ref');
@@ -72,8 +68,6 @@ export function FreeTextEditor({
         validationPromptActive={validationPromptActive}
         focusRequest={focusRequest}
         caretResetSeq={caretResetSeq}
-        debugInteractionId={debugInteractionId}
-        debugSlotId={debugSlotId}
       />
     </div>
   );

@@ -35,25 +35,6 @@ export function FreeTextCanvas({
   onSendAssistantPrompt,
   onSlotPillClick,
 }: FreeTextCanvasProps) {
-  // #region agent log
-  const logValidateFlow = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
-    if (typeof fetch === 'undefined') return;
-    fetch('http://127.0.0.1:7475/ingest/85fb0133-7344-44d6-adaa-9a6e88888095', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '24a1d3' },
-      body: JSON.stringify({
-        sessionId: '24a1d3',
-        runId: 'dup-validate-focus-debug',
-        hypothesisId,
-        location: 'FreeTextCanvas.tsx',
-        message,
-        data,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  };
-  // #endregion
-
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [insertMenu, setInsertMenu] = useState<{ anchor: { top: number; left: number }; insertOffset: number } | null>(null);
   const [validationPromptMenu, setValidationPromptMenu] = useState<{ anchor: { top: number; left: number }; insertOffset: number } | null>(null);
@@ -69,7 +50,6 @@ export function FreeTextCanvas({
   const slotRowRef = useRef<HTMLDivElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const focusSeqRef = useRef(0);
-  const debugInteractionRef = useRef<string | null>(null);
 
   const slotCards = useMemo<SlotCardDraft[]>(() => getDocumentSlotCards(document), [document]);
   const activeSlot = slotCards.find((card) => card.id === activeSlotId) ?? slotCards[0];
@@ -139,8 +119,6 @@ export function FreeTextCanvas({
     },
     [document, onDocumentChange]
   );
-
-  const primarySlotName = currentSlotNames[0] ?? '';
 
   const handleSelectSlot = useCallback((segmentId: string) => {
     setSelectedSegmentId(segmentId);
@@ -271,23 +249,6 @@ export function FreeTextCanvas({
     (cmd: SlashCommand) => {
       if (cmd.kind !== 'add_validation_type' || !validationPromptMenu) return;
       const phrase = VALIDATION_PHRASE[cmd.validationType];
-      const interactionId = `valTypeSelect:slot-1:${cmd.validationType}:${Date.now()}`;
-      debugInteractionRef.current = interactionId;
-      // #region agent log
-      logValidateFlow(
-        'validation prompt select',
-        {
-          interactionId,
-          validationType: cmd.validationType,
-          hasAfterSlotMenu: afterSlotMenu != null,
-          hasValidationPromptMenu: validationPromptMenu != null,
-          hasAnyValidation: segments.some((s) => s.type === 'validation'),
-          insertOffset: validationPromptMenu.insertOffset,
-          contentLen: content.length,
-        },
-        'H1'
-      );
-      // #endregion
       if (segments.some((s) => s.type === 'validation')) {
         focusSeqRef.current += 1;
         setFocusRequest({ seq: focusSeqRef.current, offset: content.length, reason: 'validation-prompt-existing-validation' });
@@ -300,20 +261,6 @@ export function FreeTextCanvas({
         phrase +
         ' ' +
         content.slice(validationPromptMenu.insertOffset);
-      // #region agent log
-      logValidateFlow(
-        'validation prompt select mutation',
-        {
-          interactionId,
-          beforeLen: content.length,
-          afterLen: newContent.length,
-          beforeNewlines: (content.match(/\n/g) ?? []).length,
-          afterNewlines: (newContent.match(/\n/g) ?? []).length,
-          insertOffset: validationPromptMenu.insertOffset,
-        },
-        'H1'
-      );
-      // #endregion
       setCaretResetSeq((v) => v + 1);
       handleContentChange(newContent);
       focusSeqRef.current += 1;
@@ -377,35 +324,7 @@ export function FreeTextCanvas({
   const handleInsertSelect = useCallback(
     (cmd: SlashCommand) => {
       if (!insertMenu) return;
-      // #region agent log
-      logValidateFlow(
-        'insert menu select',
-        {
-          kind: cmd.kind,
-          hasAfterSlotMenu: afterSlotMenu != null,
-          hasValidationPromptMenu: validationPromptMenu != null,
-          hasAnyValidation: segments.some((s) => s.type === 'validation'),
-          contentLen: content.length,
-        },
-        'H2'
-      );
-      // #endregion
       if (cmd.kind === 'add_validation') {
-        const interactionId = `validateInsert:${activeSlot.id}:${Date.now()}`;
-        debugInteractionRef.current = interactionId;
-        // #region agent log
-        logValidateFlow(
-          'validate insert interaction',
-          {
-            interactionId,
-            slotId: activeSlot.id,
-            insertOffset: insertMenu.insertOffset,
-            contentLen: content.length,
-            hasAnyValidation: segments.some((s) => s.type === 'validation'),
-          },
-          'H1'
-        );
-        // #endregion
         const ensureResult = ensureValidateRow(insertMenu.insertOffset);
         const slotRect = slotRowRef.current?.getBoundingClientRect();
         const anchor = slotRect
@@ -440,22 +359,6 @@ export function FreeTextCanvas({
     }
   }, [segments]);
 
-  useEffect(() => {
-    if (!focusRequest) return;
-    // #region agent log
-    logValidateFlow(
-      'focus request set',
-      {
-        seq: focusRequest.seq,
-        reason: focusRequest.reason,
-        offset: focusRequest.offset,
-        hasAnyValidation: segments.some((s) => s.type === 'validation'),
-        contentLen: content.length,
-      },
-      'H4'
-    );
-    // #endregion
-  }, [focusRequest, segments, content.length]);
 
   return (
     <div className={styles.modal}>
@@ -571,8 +474,6 @@ export function FreeTextCanvas({
                       validationPromptActive={isActiveCard && validationPromptMenu != null}
                       focusRequest={isActiveCard ? focusRequest : null}
                       caretResetSeq={caretResetSeq}
-                      debugInteractionId={debugInteractionRef.current}
-                      debugSlotId={card.id}
                     />
                   </div>
                 </div>

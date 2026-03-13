@@ -40,6 +40,20 @@
   -webkit-user-select: none;
 }
 
+
+/* Ghost cursor: absolutely-positioned marker shown when the editor loses focus,
+   so the last typing position remains visible. Switches off the moment focus
+   returns (isFocused=true) so the browser's native blinking cursor takes over. */
+.ghostCaret {
+  position: absolute;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--text, currentColor);
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 1;
+}
+
 /* Editor fills the slot block container - no inner border (Figma 842-6526) */
 .editor {
   display: block;
