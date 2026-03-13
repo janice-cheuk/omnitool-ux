@@ -866,7 +866,12 @@ export function InlineSegmentEditor({
   useLayoutEffect(() => {
     const el = containerRef.current;
     const fromRef = caretOffsetRef.current;
-    const defaultOnLine2 = content.endsWith('\n') && hasValidationLinePlaceholder ? content.length : undefined;
+    // Also auto-focus when "contains" validation is active with no value yet so the
+    // native blinking cursor appears right after the chip without the user having to click.
+    const defaultOnLine2 =
+      (content.endsWith('\n') && hasValidationLinePlaceholder) || containsValidationSelected
+        ? content.length
+        : undefined;
     const desiredOffset = fromRef ?? defaultOnLine2;
     const willApply = el && desiredOffset != null && (fromRef != null || defaultOnLine2 != null);
     if (willApply) {
@@ -878,7 +883,27 @@ export function InlineSegmentEditor({
       setCaretAtOffset(el, targetOffset);
       requestAnimationFrame(() => { isRestoringCaretRef.current = false; });
     }
-  }, [content, hasValidationLinePlaceholder, renderItems]);
+  }, [content, hasValidationLinePlaceholder, containsValidationSelected, renderItems]);
+
+  // Seed the ghost caret from the cursor anchor's DOM position whenever the
+  // "contains" validation is active and the editor is not focused. This makes
+  // the caret indicator visible on first paint — before the user has ever clicked in.
+  useLayoutEffect(() => {
+    if (isFocused || !containsValidationSelected) return;
+    const anchor = containerRef.current?.querySelector('[data-cursor-anchor]') as HTMLElement | null;
+    const wrapper = wrapperRef.current;
+    if (!anchor || !wrapper) return;
+    const wRect = wrapper.getBoundingClientRect();
+    const prevSibling = anchor.previousElementSibling as HTMLElement | null;
+    const refRect = (prevSibling ?? anchor).getBoundingClientRect();
+    if (refRect.height > 0) {
+      setGhostCaretRect({
+        left: refRect.right - wRect.left,
+        top: refRect.top - wRect.top,
+        height: refRect.height,
+      });
+    }
+  }, [containsValidationSelected, isFocused, renderItems]);
 
   return (
     <div
